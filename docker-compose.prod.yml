@@ -1,9 +1,13 @@
-# Production: the app (using MongoDB Atlas) behind Caddy, which serves HTTPS
-# for travel.prayushadhikari.com.np and renews certificates automatically.
+# Production app (using MongoDB Atlas). Secrets live in .env.production
+# (copy .env.production.example).
 #
-#   docker compose -f docker-compose.prod.yml up -d --build
+# Server that already has a reverse proxy on ports 80/443 (another Caddy,
+# Nginx Proxy Manager, Traefik...): join that proxy's network instead:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.proxy.yml up -d --build
 #
-# Secrets live in .env.production (copy .env.production.example).
+# Fresh server with nothing on ports 80/443: also start the bundled Caddy,
+# which serves HTTPS for travel.prayushadhikari.com.np:
+#   docker compose -f docker-compose.prod.yml --profile caddy up -d --build
 name: wanderlust
 
 services:
@@ -31,6 +35,7 @@ services:
 
   caddy:
     image: caddy:2-alpine
+    profiles: ["caddy"]
     restart: unless-stopped
     depends_on:
       - app

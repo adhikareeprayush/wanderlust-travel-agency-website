@@ -70,11 +70,11 @@ Authentication uses hashed passwords and signed, expiring JWTs. Production start
 
 ## Deploy to a VPS (Docker + Caddy)
 
-`docker-compose.prod.yml` runs the app behind Caddy, which serves HTTPS for `travel.prayushadhikari.com.np` and renews the certificate automatically. The database is MongoDB Atlas; images are stored and served by ImageKit.
+`docker-compose.prod.yml` runs the app (database: MongoDB Atlas; images: ImageKit). HTTPS for `travel.prayushadhikari.com.np` comes from a reverse proxy, either one already on the server or the bundled Caddy.
 
 Before you start:
 
-- A DNS **A record** for `travel.prayushadhikari.com.np` pointing at the VPS, and ports **80** and **443** open.
+- A DNS **A record** for `travel.prayushadhikari.com.np` pointing at the VPS.
 - In **Atlas → Network Access**, allow the VPS's public IP address.
 - Docker with the Compose plugin on the VPS.
 
@@ -82,27 +82,49 @@ Before you start:
 git clone <your-repo-url> wanderlust && cd wanderlust
 cp .env.production.example .env.production
 nano .env.production        # fill in MONGODB_URI, JWT_SECRET, IMAGEKIT_PRIVATE_KEY
-docker compose -f docker-compose.prod.yml up -d --build
-
-# First time only
-docker compose -f docker-compose.prod.yml exec app node server/scripts/create-admin.js you@example.com "Your Name"
-docker compose -f docker-compose.prod.yml exec app node server/scripts/setup.js --catalog   # optional sample journeys
 ```
 
-- `JWT_SECRET`: generate with `openssl rand -hex 32`. The app refuses to start in production without a strong one.
-- `create-admin` asks for a password (12+ characters). Sign in at `/login`, then add staff under **Team & settings**.
-- `setup.js --catalog` adds the sample journeys and dates only. The public demo accounts are never created in production.
-- Updates: `git pull && docker compose -f docker-compose.prod.yml up -d --build`.
-- Logs: `docker compose -f docker-compose.prod.yml logs -f app caddy`.
+`JWT_SECRET`: generate with `openssl rand -hex 32`. The app refuses to start in production without a strong one.
 
-If Caddy already runs on the host for other sites, remove the `caddy` service, publish the app with `ports: ["127.0.0.1:5000:5000"]`, and add this to your existing Caddyfile:
+**A. The server already has a reverse proxy in Docker** (another Caddy, Nginx Proxy Manager, Traefik; Docker reports *port is already allocated* for 80/443):
+
+```bash
+# Find the proxy container and its network
+docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}' | grep -E 'NAMES|:80->'
+docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{println $k}}{{end}}' <proxy-container>
+
+echo "PROXY_NETWORK=<that-network>" > .env
+docker compose -f docker-compose.prod.yml -f docker-compose.proxy.yml up -d --build
+```
+
+Then point the proxy at `wanderlust-app:5000`. For Caddy, add this to its Caddyfile and reload it (`docker exec <proxy-container> caddy reload --config /etc/caddy/Caddyfile`):
 
 ```
 travel.prayushadhikari.com.np {
 	encode zstd gzip
-	reverse_proxy 127.0.0.1:5000
+	reverse_proxy wanderlust-app:5000
 }
 ```
+
+For Nginx Proxy Manager, add a Proxy Host for the domain forwarding to `http` / `wanderlust-app` / `5000`, and request a Let's Encrypt certificate with Force SSL.
+
+**B. Nothing else uses ports 80/443**: also start the bundled Caddy (uses `Caddyfile`, certificates are automatic):
+
+```bash
+docker compose -f docker-compose.prod.yml --profile caddy up -d --build
+```
+
+First time only, create your administrator and (optionally) the sample journeys:
+
+```bash
+docker compose -f docker-compose.prod.yml exec app node server/scripts/create-admin.js you@example.com "Your Name"
+docker compose -f docker-compose.prod.yml exec app node server/scripts/setup.js --catalog
+```
+
+- `create-admin` asks for a password (12+ characters). Sign in at `/login`, then add staff under **Team & settings**.
+- `setup.js --catalog` adds the sample journeys and dates only. The public demo accounts are never created in production.
+- Updates: `git pull`, then the same `up -d --build` command you used above.
+- Logs: `docker compose -f docker-compose.prod.yml logs -f app`.
 
 ### Images (ImageKit)
 
