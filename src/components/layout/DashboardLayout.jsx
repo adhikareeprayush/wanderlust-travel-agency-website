@@ -3,25 +3,66 @@ import { useEffect, useState } from "react";
 import Brand from "../Brand";
 import Icon from "../Icon";
 import { useAuth } from "../../context/useAuth";
+import { api } from "../../api/client";
 import DashboardProfileMenu from "../dashboard/DashboardProfileMenu";
 
 const primary = [
   { to: "/dashboard", label: "Overview", icon: "globe", end: true },
-  { to: "/dashboard/bookings", label: "Bookings", icon: "calendar" },
-  { to: "/dashboard/tours", label: "Journeys", icon: "pin" },
-  { to: "/dashboard/departures", label: "Departures", icon: "clock" },
-  { to: "/dashboard/enquiries", label: "Enquiries", icon: "mail" },
+  {
+    to: "/dashboard/bookings",
+    label: "Bookings",
+    icon: "calendar",
+    permission: "bookings",
+  },
+  { to: "/dashboard/tours", label: "Journeys", icon: "pin", permission: "tours" },
+  {
+    to: "/dashboard/departures",
+    label: "Departures",
+    icon: "clock",
+    permission: "departures",
+  },
+  {
+    to: "/dashboard/enquiries",
+    label: "Enquiries",
+    icon: "mail",
+    permission: "enquiries",
+  },
 ];
 const secondary = [
-  { to: "/dashboard/guests", label: "Travellers", icon: "users" },
-  { to: "/dashboard/guides", label: "Guides", icon: "shield" },
-  { to: "/dashboard/suppliers", label: "Suppliers", icon: "leaf" },
-  { to: "/dashboard/analytics", label: "Analytics", icon: "chart" },
-  { to: "/dashboard/settings", label: "Settings", icon: "settings" },
+  {
+    to: "/dashboard/guests",
+    label: "Travellers",
+    icon: "users",
+    permission: "guests",
+  },
+  {
+    to: "/dashboard/guides",
+    label: "Guides",
+    icon: "shield",
+    permission: "guides",
+  },
+  {
+    to: "/dashboard/suppliers",
+    label: "Suppliers",
+    icon: "leaf",
+    permission: "suppliers",
+  },
+  {
+    to: "/dashboard/analytics",
+    label: "Analytics",
+    icon: "chart",
+    permission: "analytics",
+  },
+  {
+    to: "/dashboard/settings",
+    label: "Team & settings",
+    icon: "settings",
+    admin: true,
+  },
 ];
 const allItems = [...primary, ...secondary];
 
-function SidebarGroup({ title, items, onNavigate }) {
+function SidebarGroup({ title, items, onNavigate, badges = {} }) {
   return (
     <div className="portal-nav-group">
       <p className="portal-nav-caption">{title}</p>
@@ -38,8 +79,11 @@ function SidebarGroup({ title, items, onNavigate }) {
           >
             <Icon name={item.icon} size={18} />
             <span>{item.label}</span>
-            {item.label === "Enquiries" && (
-              <span className="portal-nav-indicator" aria-hidden="true" />
+            {badges[item.to] > 0 && (
+              <span
+                className="portal-nav-indicator"
+                aria-label={`${badges[item.to]} new`}
+              />
             )}
           </NavLink>
         ))}
@@ -50,8 +94,12 @@ function SidebarGroup({ title, items, onNavigate }) {
 
 export default function DashboardLayout() {
   const { pathname } = useLocation();
-  const { user } = useAuth();
+  const { user, can, isAdmin } = useAuth();
+  const allowed = (item) =>
+    item.admin ? isAdmin : !item.permission || can(item.permission);
+  const canEnquiries = can("enquiries");
   const [open, setOpen] = useState(false);
+  const [newEnquiries, setNewEnquiries] = useState(0);
   const current =
     allItems.find((item) => item.to === pathname)?.label || "Overview";
   const initials =
@@ -61,6 +109,18 @@ export default function DashboardLayout() {
       .join("")
       .slice(0, 2)
       .toUpperCase() || "WT";
+  useEffect(() => {
+    if (!canEnquiries) return undefined;
+    const controller = new AbortController();
+    api("/enquiries", { signal: controller.signal })
+      .then((data) =>
+        setNewEnquiries(
+          data.enquiries.filter((row) => row.status === "new").length,
+        ),
+      )
+      .catch(() => {});
+    return () => controller.abort();
+  }, [pathname, canEnquiries]);
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => {
@@ -100,23 +160,19 @@ export default function DashboardLayout() {
         <div className="portal-sidebar-scroll">
           <SidebarGroup
             title="WORKSPACE"
-            items={primary}
+            items={primary.filter(allowed)}
+            badges={{ "/dashboard/enquiries": newEnquiries }}
             onNavigate={() => setOpen(false)}
           />
-          <SidebarGroup
-            title="OPERATIONS"
-            items={secondary}
-            onNavigate={() => setOpen(false)}
-          />
+          {secondary.some(allowed) && (
+            <SidebarGroup
+              title={isAdmin ? "OPERATIONS & TEAM" : "OPERATIONS"}
+              items={secondary.filter(allowed)}
+              onNavigate={() => setOpen(false)}
+            />
+          )}
         </div>
         <div className="portal-sidebar-bottom">
-          <div className="portal-assist">
-            <span className="portal-assist-icon">
-              <Icon name="star" size={17} />
-            </span>
-            <strong>Every detail matters.</strong>
-            <p>Keep your travellers' journeys moving beautifully.</p>
-          </div>
           <NavLink
             to="/"
             className="portal-view-site"

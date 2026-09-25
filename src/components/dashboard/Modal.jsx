@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from "react";
-export default function Modal({ title, children, onClose }) {
+import Icon from "../Icon";
+export default function Modal({ title, description, children, onClose, size }) {
   const ref = useRef(null);
   const titleId = useId();
   useEffect(() => {
@@ -15,22 +16,28 @@ export default function Modal({ title, children, onClose }) {
         e.preventDefault();
         onClose();
       }}
-      className="m-auto max-h-[90vh] w-[calc(100%_-_32px)] max-w-xl overflow-y-auto rounded-xl border-0 bg-white p-6 text-[#233d33] shadow-xl backdrop:bg-black/40"
+      onClick={(e) => {
+        if (e.target === ref.current) onClose();
+      }}
+      className={`portal-modal${size ? ` is-${size}` : ""}`}
     >
-      <div className="mb-5 flex items-center justify-between gap-4">
-        <h3 id={titleId} className="font-volkhov text-2xl">
-          {title}
-        </h3>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-button"
-          aria-label="Close dialog"
-        >
-          Close ×
-        </button>
+      <div className="portal-modal-inner">
+        <div className="portal-modal-header">
+          <div>
+            <h3 id={titleId}>{title}</h3>
+            {description && <p>{description}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="portal-icon-btn"
+            aria-label="Close dialog"
+          >
+            <Icon name="close" size={16} />
+          </button>
+        </div>
+        {children}
       </div>
-      {children}
     </dialog>
   );
 }

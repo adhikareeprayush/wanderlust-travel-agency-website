@@ -4,11 +4,12 @@ import { Departure } from "../models/Departure.js";
 import { Enquiry } from "../models/Enquiry.js";
 import { Activity } from "../models/Activity.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { protect, requireStaff } from "../middleware/auth.js";
+import { protect, requirePermission } from "../middleware/auth.js";
 import { expireUnpaidHolds } from "../utils/booking.js";
 
 const router = Router();
-router.use(protect, requireStaff);
+router.use(protect, requirePermission("analytics"));
+const TREND_MONTHS = 6;
 
 router.get(
   "/overview",
@@ -56,19 +57,31 @@ router.get(
     const booked = departures.reduce((sum, d) => sum + d.bookedCount, 0);
     const occupancy = seats ? Math.round((booked / seats) * 100) : 0;
 
-    const monthMap = new Map();
+    // A continuous, zero-filled window so the chart has a real time axis.
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    monthStart.setMonth(monthStart.getMonth() - (TREND_MONTHS - 1));
+    const revenueByMonth = Array.from({ length: TREND_MONTHS }, (_, i) => {
+      const d = new Date(monthStart);
+      d.setMonth(d.getMonth() + i);
+      return {
+        key: `${d.getFullYear()}-${d.getMonth()}`,
+        month: d.toLocaleString("en-US", { month: "short" }),
+        year: d.getFullYear(),
+        amount: 0,
+        bookings: 0,
+      };
+    });
+    const monthIndex = new Map(revenueByMonth.map((m, i) => [m.key, i]));
     for (const booking of confirmed) {
       const d = new Date(booking.createdAt);
-      const key = `${d.getFullYear()}-${d.getMonth()}`;
-      const label = d.toLocaleString("en-US", { month: "short" });
-      if (!monthMap.has(key))
-        monthMap.set(key, { month: label, amount: 0, sort: d });
-      monthMap.get(key).amount += booking.total;
+      const index = monthIndex.get(`${d.getFullYear()}-${d.getMonth()}`);
+      if (index === undefined) continue;
+      const slot = revenueByMonth[index];
+      slot.amount += booking.total;
+      slot.bookings += 1;
     }
-    const revenueByMonth = [...monthMap.values()]
-      .sort((a, b) => a.sort - b.sort)
-      .slice(-6)
-      .map(({ month, amount }) => ({ month, amount }));
 
     const destMap = new Map();
     for (const booking of confirmed) {
@@ -96,36 +109,21 @@ router.get(
     for (const booking of confirmed) {
       sourceCounts[booking.source] = (sourceCounts[booking.source] || 0) + 1;
     }
-    const sourceTotal =
-      sourceCounts.website +
-        sourceCounts.agent +
-        sourceCounts.repeat +
-        sourceCounts.social +
-        sourceCounts.staff || 1;
     const leadSources = [
       {
+        key: "website",
         name: "Website & team",
-        value: Math.round(
-          ((sourceCounts.website + sourceCounts.staff) / sourceTotal) * 100,
-        ),
-        color: "#315c46",
+        count: sourceCounts.website + sourceCounts.staff,
       },
-      {
-        name: "Agent referral",
-        value: Math.round((sourceCounts.agent / sourceTotal) * 100),
-        color: "#86a875",
-      },
-      {
-        name: "Repeat guest",
-        value: Math.round((sourceCounts.repeat / sourceTotal) * 100),
-        color: "#c5d5ac",
-      },
-      {
-        name: "Social campaign",
-        value: Math.round((sourceCounts.social / sourceTotal) * 100),
-        color: "#aebfab",
-      },
+      { key: "agent", name: "Agent referral", count: sourceCounts.agent },
+      { key: "repeat", name: "Repeat guest", count: sourceCounts.repeat },
+      { key: "social", name: "Social campaign", count: sourceCounts.social },
     ];
+    const sourceTotal = leadSources.reduce((sum, item) => sum + item.count, 0);
+    for (const item of leadSources)
+      item.value = sourceTotal
+        ? Math.round((item.count / sourceTotal) * 100)
+        : 0;
 
     const stats = [
       {
@@ -168,11 +166,36 @@ router.get(
       .sort({ createdAt: -1 })
       .limit(8);
 
+    const statusCounts = await Booking.aggregate([
+      { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]);
+    const pipeline = ["pending", "waitlist", "confirmed", "cancelled"].map(
+      (status) => ({
+        status,
+        count: statusCounts.find((row) => row._id === status)?.count || 0,
+      }),
+    );
+
+    const upcomingDepartures = [...departures]
+      .sort((a, b) => a.startDate - b.startDate)
+      .slice(0, 6);
+    await Departure.populate(upcomingDepartures, {
+      path: "tour",
+      select: "title",
+    });
+
     res.json({
       stats,
-      revenueByMonth: revenueByMonth.length
-        ? revenueByMonth
-        : [{ month: "Now", amount: revenue30 }],
+      revenueByMonth: revenueByMonth.map(({ key: _key, ...month }) => month),
+      pipeline,
+      upcomingDepartures: upcomingDepartures.map((d) => ({
+        id: d._id,
+        tour: d.tour?.title || "Journey",
+        startDate: d.startDate,
+        seats: d.seats,
+        booked: d.bookedCount,
+      })),
+      seats: { booked, total: seats },
       topDestinations,
       leadSources,
       occupancy,

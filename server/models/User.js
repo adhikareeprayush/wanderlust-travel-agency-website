@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import { PERMISSIONS } from "../config/permissions.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -18,9 +19,22 @@ const userSchema = new mongoose.Schema(
       default: "customer",
     },
     phone: { type: String, default: "" },
+    // Only used for staff. Existing staff accounts keep full access by default.
+    permissions: {
+      type: [{ type: String, enum: PERMISSIONS }],
+      default: () => [...PERMISSIONS],
+    },
+    active: { type: Boolean, default: true },
+    lastLoginAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
+
+userSchema.methods.effectivePermissions = function effectivePermissions() {
+  if (this.role === "admin") return [...PERMISSIONS];
+  if (this.role === "staff") return [...(this.permissions || [])];
+  return [];
+};
 
 userSchema.methods.comparePassword = function comparePassword(password) {
   return bcrypt.compare(password, this.passwordHash);
@@ -37,6 +51,16 @@ userSchema.methods.toSafeJSON = function toSafeJSON() {
     email: this.email,
     role: this.role,
     phone: this.phone,
+    permissions: this.effectivePermissions(),
+  };
+};
+
+userSchema.methods.toTeamJSON = function toTeamJSON() {
+  return {
+    ...this.toSafeJSON(),
+    active: this.active !== false,
+    lastLoginAt: this.lastLoginAt,
+    createdAt: this.createdAt,
   };
 };
 

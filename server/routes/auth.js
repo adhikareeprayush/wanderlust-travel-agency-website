@@ -56,6 +56,13 @@ router.post(
     if (!user || !(await user.comparePassword(data.password))) {
       throw new AppError("Invalid email or password", 401);
     }
+    if (user.active === false)
+      throw new AppError(
+        "This account has been deactivated. Contact your administrator.",
+        403,
+      );
+    user.lastLoginAt = new Date();
+    await user.save();
     const token = signToken(user);
     res.json({ token, user: user.toSafeJSON() });
   }),
@@ -85,6 +92,28 @@ router.patch(
       req.user.passwordHash = await User.hashPassword(data.password);
     await req.user.save();
     res.json({ user: req.user.toSafeJSON() });
+  }),
+);
+
+router.post(
+  "/password",
+  protect,
+  asyncHandler(async (req, res) => {
+    const data = z
+      .object({
+        currentPassword: z.string().min(1),
+        newPassword: z
+          .string()
+          .min(8, "Use at least 8 characters.")
+          .max(128),
+      })
+      .parse(req.body);
+    const user = await User.findById(req.user._id).select("+passwordHash");
+    if (!(await user.comparePassword(data.currentPassword)))
+      throw new AppError("Your current password is incorrect.", 400);
+    user.passwordHash = await User.hashPassword(data.newPassword);
+    await user.save();
+    res.json({ ok: true });
   }),
 );
 

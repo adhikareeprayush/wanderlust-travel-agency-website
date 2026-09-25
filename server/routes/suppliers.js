@@ -2,11 +2,11 @@ import { Router } from "express";
 import { z } from "zod";
 import { Supplier } from "../models/Supplier.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { protect, requireStaff } from "../middleware/auth.js";
+import { protect, requirePermission } from "../middleware/auth.js";
 import { AppError } from "../utils/AppError.js";
 
 const router = Router();
-router.use(protect, requireStaff);
+router.use(protect, requirePermission("suppliers"));
 
 router.get(
   "/",

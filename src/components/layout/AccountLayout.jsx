@@ -3,7 +3,7 @@ import { useAuth } from "../../context/useAuth";
 import Brand from "../Brand";
 import Icon from "../Icon";
 export default function AccountLayout() {
-  const { user, logout, isStaff } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   function signOut() {
     logout();
@@ -18,11 +18,6 @@ export default function AccountLayout() {
             <Link to="/packages" className="account-explore">
               Explore journeys <Icon name="northeast" size={16} />
             </Link>
-            {isStaff && (
-              <Link className="account-staff-link" to="/dashboard">
-                Staff workspace
-              </Link>
-            )}
             <button
               onClick={signOut}
               aria-label="Sign out"

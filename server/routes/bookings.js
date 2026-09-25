@@ -3,7 +3,12 @@ import { z } from "zod";
 import { Booking } from "../models/Booking.js";
 import { Departure } from "../models/Departure.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { optionalAuth, protect, requireStaff } from "../middleware/auth.js";
+import {
+  hasPermission,
+  optionalAuth,
+  protect,
+  requirePermission,
+} from "../middleware/auth.js";
 import { AppError } from "../utils/AppError.js";
 import {
   hashAccess,
@@ -28,7 +33,7 @@ async function ownedBooking(req) {
   const token = req.get("X-Booking-Token");
   const guestAccess =
     token && token.length <= 128 && booking.trackingHash === hashAccess(token);
-  if (!isStaff(req) && !owner && !guestAccess)
+  if (!hasPermission(req.user, "bookings") && !owner && !guestAccess)
     throw new AppError(
       "Sign in to the account that made this request, or use your original browser session.",
       401,
@@ -49,7 +54,7 @@ router.get(
 router.get(
   "/",
   protect,
-  requireStaff,
+  requirePermission("bookings"),
   asyncHandler(async (req, res) => {
     const filter = {};
     if (req.query.status && req.query.status !== "all")
@@ -171,7 +176,7 @@ router.post(
 router.patch(
   "/:id/status",
   protect,
-  requireStaff,
+  requirePermission("bookings"),
   asyncHandler(async (req, res) => {
     const { status } = z
       .object({

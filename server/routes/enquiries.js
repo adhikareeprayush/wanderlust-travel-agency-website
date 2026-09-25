@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { Enquiry } from "../models/Enquiry.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { protect, requireStaff } from "../middleware/auth.js";
+import { protect, requirePermission } from "../middleware/auth.js";
 import { enquiryEmail, sendMail } from "../utils/mailer.js";
 import { logActivity } from "../utils/activity.js";
 import { AppError } from "../utils/AppError.js";
@@ -28,7 +28,7 @@ router.post(
 router.get(
   "/",
   protect,
-  requireStaff,
+  requirePermission("enquiries"),
   asyncHandler(async (_req, res) =>
     res.json({
       enquiries: await Enquiry.find().sort({ createdAt: -1 }).limit(500),
@@ -38,7 +38,7 @@ router.get(
 router.patch(
   "/:id",
   protect,
-  requireStaff,
+  requirePermission("enquiries"),
   asyncHandler(async (req, res) => {
     const { status } = z
       .object({ status: z.enum(["new", "in_progress", "closed"]) })

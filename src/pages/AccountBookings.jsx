@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
-import { StatusBadge } from "../components/dashboard/DashboardUi";
+import {
+  ConfirmDialog,
+  LoadingState,
+  StatusBadge,
+  SummaryStrip,
+} from "../components/dashboard/DashboardUi";
 import Icon from "../components/Icon";
 import { formatDate, formatMoney, resolveTourImage } from "../lib/tourImages";
 export default function AccountBookings() {
@@ -9,6 +14,8 @@ export default function AccountBookings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
+  const [cancelling, setCancelling] = useState(null);
+  const [cancelError, setCancelError] = useState("");
   const load = useCallback(async () => {
     try {
       setError("");
@@ -23,18 +30,20 @@ export default function AccountBookings() {
   useEffect(() => {
     load();
   }, [load]);
-  async function cancel(booking) {
-    if (!window.confirm("Cancel this booking request?")) return;
-    setBusy(booking._id);
+  async function cancel() {
+    setBusy(cancelling._id);
+    setCancelError("");
     try {
-      await api(`/bookings/${booking._id}/cancel`, { method: "POST" });
+      await api(`/bookings/${cancelling._id}/cancel`, { method: "POST" });
+      setCancelling(null);
       await load();
     } catch (e) {
-      setError(e.message);
+      setCancelError(e.message);
     } finally {
       setBusy("");
     }
   }
+  const active = bookings.filter((b) => b.status !== "cancelled");
   return (
     <div className="account-page">
       <div className="account-page-header">
@@ -46,22 +55,39 @@ export default function AccountBookings() {
             before reserving your places.
           </p>
         </div>
-        {!loading && (
-          <span
-            className="account-page-count"
-            aria-label={`${bookings.length} journeys`}
-          >
-            {bookings.length}
-          </span>
-        )}
       </div>
+      {!loading && bookings.length > 0 && (
+        <SummaryStrip
+          items={[
+            {
+              label: "Confirmed",
+              value: bookings.filter((b) => b.status === "confirmed").length,
+              icon: "check",
+              tone: "good",
+            },
+            {
+              label: "Awaiting confirmation",
+              value: bookings.filter((b) =>
+                ["pending", "waitlist"].includes(b.status),
+              ).length,
+              icon: "clock",
+              tone: "warn",
+            },
+            {
+              label: "Estimated trip value",
+              value: formatMoney(active.reduce((sum, b) => sum + b.total, 0)),
+              icon: "dollar",
+            },
+          ]}
+        />
+      )}
       {error && (
         <p className="error-message" role="alert">
           {error}
         </p>
       )}
       {loading ? (
-        <p role="status">Loading your journeys…</p>
+        <LoadingState>Loading your journeys…</LoadingState>
       ) : !bookings.length ? (
         <div className="account-empty">
           <Icon name="globe" size={35} />
@@ -101,7 +127,13 @@ export default function AccountBookings() {
               <div className="account-journey-actions">
                 <Link to={`/booking/${b._id}/success`}>View details</Link>
                 {["pending", "waitlist"].includes(b.status) && (
-                  <button disabled={busy === b._id} onClick={() => cancel(b)}>
+                  <button
+                    disabled={busy === b._id}
+                    onClick={() => {
+                      setCancelError("");
+                      setCancelling(b);
+                    }}
+                  >
                     {busy === b._id ? "Cancelling…" : "Cancel request"}
                   </button>
                 )}
@@ -112,6 +144,20 @@ export default function AccountBookings() {
             </div>
           </article>
         ))
+      )}
+      {cancelling && (
+        <ConfirmDialog
+          title="Cancel this request?"
+          confirmLabel="Cancel request"
+          busy={busy === cancelling._id}
+          error={cancelError}
+          onClose={() => setCancelling(null)}
+          onConfirm={cancel}
+        >
+          Your request <strong>{cancelling.reference}</strong> for{" "}
+          {cancelling.tour?.title || "this journey"} will be cancelled. You
+          can always send a new request later.
+        </ConfirmDialog>
       )}
     </div>
   );

@@ -18,6 +18,8 @@ export const protect = asyncHandler(async (req, _res, next) => {
     const decoded = jwt.verify(token, env.jwtSecret);
     const user = await User.findById(decoded.id);
     if (!user) throw new AppError("User not found", 401);
+    if (user.active === false)
+      throw new AppError("This account has been deactivated.", 401);
     req.user = user;
     next();
   } catch (err) {
@@ -33,16 +35,31 @@ export const optionalAuth = asyncHandler(async (req, _res, next) => {
   try {
     const decoded = jwt.verify(token, env.jwtSecret);
     const user = await User.findById(decoded.id);
-    if (user) req.user = user;
+    if (user && user.active !== false) req.user = user;
   } catch {
     // ignore invalid optional tokens
   }
   next();
 });
 
-export function requireStaff(req, _res, next) {
-  if (!req.user || !["staff", "admin"].includes(req.user.role)) {
-    return next(new AppError("Staff access required", 403));
-  }
+
+export function hasPermission(user, permission) {
+  if (!user) return false;
+  if (user.role === "admin") return true;
+  return user.role === "staff" && user.permissions?.includes(permission);
+}
+
+// Allows admins, and staff holding at least one of the listed permissions.
+export const requirePermission =
+  (...permissions) =>
+  (req, _res, next) => {
+    if (permissions.some((permission) => hasPermission(req.user, permission)))
+      return next();
+    next(new AppError("You do not have access to this area.", 403));
+  };
+
+export function requireAdmin(req, _res, next) {
+  if (req.user?.role !== "admin")
+    return next(new AppError("Administrator access required", 403));
   next();
 }

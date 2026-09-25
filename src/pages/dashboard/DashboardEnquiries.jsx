@@ -1,7 +1,27 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../../api/client";
-import { Card } from "../../components/dashboard/DashboardUi";
+import {
+  Avatar,
+  Card,
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  SearchField,
+  Segmented,
+  StatusBadge,
+  SummaryStrip,
+  Toolbar,
+} from "../../components/dashboard/DashboardUi";
+import Icon from "../../components/Icon";
 import { formatDate } from "../../lib/tourImages";
+
+const STATUS_OPTIONS = [
+  { value: "new", label: "New" },
+  { value: "in_progress", label: "In progress" },
+  { value: "closed", label: "Closed" },
+];
+
 export default function DashboardEnquiries() {
   const [rows, setRows] = useState([]);
   const [subscribers, setSubscribers] = useState([]);
@@ -9,6 +29,8 @@ export default function DashboardEnquiries() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [tab, setTab] = useState("enquiries");
+  const [status, setStatus] = useState("all");
+  const [query, setQuery] = useState("");
   useEffect(() => {
     Promise.all([api("/enquiries"), api("/newsletter")])
       .then(([a, b]) => {
@@ -18,13 +40,13 @@ export default function DashboardEnquiries() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
-  async function update(id, status) {
+  async function update(id, next) {
     setBusy(id);
     setError("");
     try {
       const data = await api(`/enquiries/${id}`, {
         method: "PATCH",
-        body: { status },
+        body: { status: next },
       });
       setRows((prev) =>
         prev.map((row) => (row._id === id ? data.enquiry : row)),
@@ -35,98 +57,213 @@ export default function DashboardEnquiries() {
       setBusy("");
     }
   }
+  const count = (s) => rows.filter((row) => row.status === s).length;
+  const term = query.trim().toLowerCase();
+  const visible = useMemo(
+    () =>
+      rows.filter(
+        (row) =>
+          (status === "all" || row.status === status) &&
+          (!term ||
+            [row.name, row.email, row.message, row.tourSlug]
+              .filter(Boolean)
+              .some((value) => value.toLowerCase().includes(term))),
+      ),
+    [rows, status, term],
+  );
+  const visibleSubscribers = subscribers.filter(
+    (s) => !term || s.email.toLowerCase().includes(term),
+  );
   return (
-    <div className="portal-page space-y-6">
-      <div>
-        <p className="eyebrow">KEEP THE CONVERSATION GOING</p>
-        <h2 className="font-volkhov text-4xl mt-2">Enquiries & inspiration</h2>
-        <p className="status-note mt-3">
-          Review travel plans, track follow-ups, and see who has subscribed.
-        </p>
-      </div>
-      <div className="filter-pills">
-        {["enquiries", "subscribers"].map((t) => (
-          <button
-            key={t}
-            className={tab === t ? "active" : ""}
-            onClick={() => setTab(t)}
-          >
-            {t === "enquiries"
-              ? `Enquiries (${rows.length})`
-              : `Subscribers (${subscribers.length})`}
-          </button>
-        ))}
-      </div>
+    <div className="portal-page">
+      <PageHeader
+        eyebrow="KEEP THE CONVERSATION GOING"
+        title="Enquiries"
+        accent="& inspiration."
+        description="Answer travel questions, track follow-ups and see who has asked for travel inspiration."
+      />
+      <SummaryStrip
+        items={[
+          { label: "New enquiries", value: count("new"), icon: "inbox" },
+          {
+            label: "In progress",
+            value: count("in_progress"),
+            icon: "clock",
+            tone: "info",
+          },
+          {
+            label: "Closed",
+            value: count("closed"),
+            icon: "check",
+            tone: "muted",
+          },
+          {
+            label: "Newsletter subscribers",
+            value: subscribers.length,
+            icon: "mail",
+            tone: "good",
+          },
+        ]}
+      />
       {error && (
         <p className="error-message" role="alert">
           {error}
         </p>
       )}
-      {loading ? (
-        <p role="status">Opening the inbox…</p>
-      ) : tab === "enquiries" ? (
-        rows.length ? (
-          rows.map((row) => (
-            <Card
-              key={row._id}
-              title={row.name}
-              subtitle={`${row.email} · ${formatDate(row.createdAt)}`}
-              action={
-                <select
-                  aria-label={`Status for ${row.name}`}
-                  disabled={busy === row._id}
-                  value={row.status}
-                  onChange={(e) => update(row._id, e.target.value)}
-                  className="rounded-lg border border-black/10 p-2 text-xs"
-                >
-                  <option value="new">New</option>
-                  <option value="in_progress">In progress</option>
-                  <option value="closed">Closed</option>
-                </select>
-              }
+      <Toolbar>
+        <div className="portal-toolbar-group">
+          <Segmented
+            label="Choose list"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: "enquiries", label: "Enquiries", count: rows.length },
+              {
+                value: "subscribers",
+                label: "Subscribers",
+                count: subscribers.length,
+              },
+            ]}
+          />
+          {tab === "enquiries" && (
+            <select
+              aria-label="Filter by status"
+              className="portal-select"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
             >
-              <p className="text-sm whitespace-pre-wrap leading-7">
-                {row.message}
-              </p>
-              {row.phone && <p className="status-note mt-3">{row.phone}</p>}
-              {row.tourSlug && (
-                <p className="status-note mt-3">Journey: {row.tourSlug}</p>
-              )}
-            </Card>
-          ))
+              <option value="all">Every status</option>
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label} ({count(option.value)})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder={
+            tab === "enquiries" ? "Search name, email or message" : "Search email"
+          }
+        />
+      </Toolbar>
+      {loading ? (
+        <LoadingState>Opening the inbox…</LoadingState>
+      ) : tab === "enquiries" ? (
+        visible.length ? (
+          <div className="portal-inbox">
+            {visible.map((row) => (
+              <article
+                key={row._id}
+                className={`portal-enquiry${row.status === "new" ? " is-new" : ""}`}
+              >
+                <header>
+                  <div className="portal-cell-person">
+                    <Avatar name={row.name} />
+                    <div>
+                      <h3>{row.name}</h3>
+                      <p>
+                        {row.email}
+                        {row.phone && ` · ${row.phone}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="portal-enquiry-meta">
+                    <StatusBadge status={row.status} />
+                    <time dateTime={row.createdAt}>
+                      {formatDate(row.createdAt)}
+                    </time>
+                  </div>
+                </header>
+                <p className="portal-enquiry-message">{row.message}</p>
+                <footer>
+                  <div className="portal-chip-list">
+                    {row.tourSlug ? (
+                      <Link
+                        className="portal-chip is-brand"
+                        to={`/packages/${row.tourSlug}`}
+                        target="_blank"
+                      >
+                        <Icon name="pin" size={12} />
+                        {row.tourSlug.replace(/-/g, " ")}
+                      </Link>
+                    ) : (
+                      <span className="portal-chip">General enquiry</span>
+                    )}
+                  </div>
+                  <div className="portal-row-actions">
+                    <select
+                      aria-label={`Status for ${row.name}`}
+                      disabled={busy === row._id}
+                      value={row.status}
+                      onChange={(e) => update(row._id, e.target.value)}
+                      className="portal-select is-small"
+                    >
+                      {STATUS_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <a
+                      className="portal-btn portal-btn-primary is-small"
+                      href={`mailto:${row.email}?subject=${encodeURIComponent("Your Wanderlust enquiry")}`}
+                      onClick={() => {
+                        if (row.status === "new") update(row._id, "in_progress");
+                      }}
+                    >
+                      <Icon name="mail" size={13} /> Reply
+                    </a>
+                  </div>
+                </footer>
+              </article>
+            ))}
+          </div>
         ) : (
-          <Card title="All caught up">
-            <p className="status-note">
-              New website enquiries will appear here.
-            </p>
-          </Card>
+          <div className="portal-card">
+            <EmptyState icon="inbox" title="All caught up">
+              {rows.length
+                ? "No enquiries match this view."
+                : "New website enquiries will appear here."}
+            </EmptyState>
+          </div>
         )
       ) : (
         <Card
           title="Travel inspiration subscribers"
-          subtitle="Explicit newsletter sign-ups"
+          subtitle="People who explicitly signed up for the newsletter"
         >
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left">
-              <thead>
-                <tr>
-                  <th>Email address</th>
-                  <th>Subscribed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {subscribers.map((s) => (
-                  <tr key={s._id} className="border-t border-black/5">
-                    <td>{s.email}</td>
-                    <td>{formatDate(s.subscribedAt)}</td>
+          {visibleSubscribers.length ? (
+            <div className="portal-table-wrap">
+              <table className="portal-data-table">
+                <thead>
+                  <tr>
+                    <th>Email address</th>
+                    <th>Subscribed</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {!subscribers.length && (
-              <p className="status-note py-6">No subscribers yet.</p>
-            )}
-          </div>
+                </thead>
+                <tbody>
+                  {visibleSubscribers.map((s) => (
+                    <tr key={s._id}>
+                      <td>
+                        <div className="portal-cell-person">
+                          <Avatar name={s.email} size="sm" />
+                          <strong>{s.email}</strong>
+                        </div>
+                      </td>
+                      <td className="is-num">{formatDate(s.subscribedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState icon="mail" title="No subscribers yet">
+              Newsletter sign-ups from the website footer will appear here.
+            </EmptyState>
+          )}
         </Card>
       )}
     </div>

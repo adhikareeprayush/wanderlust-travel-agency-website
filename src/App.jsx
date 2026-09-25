@@ -4,7 +4,11 @@ import Index from "./pages/Index";
 import Landing from "./components/layout/Landing";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import AccountLayout from "./components/layout/AccountLayout";
-import { RequireAuth, RequireStaff } from "./components/ProtectedRoute";
+import {
+  RequireAuth,
+  RequirePermission,
+  RequireStaff,
+} from "./components/ProtectedRoute";
 import Packages from "./pages/Packages";
 import About from "./pages/About";
 import { Navigate } from "react-router-dom";
@@ -55,15 +59,34 @@ const App = () => {
           <Route element={<RequireStaff />}>
             <Route path="dashboard" element={<DashboardLayout />}>
               <Route index element={<DashboardHome />} />
-              <Route path="bookings" element={<DashboardBookings />} />
-              <Route path="tours" element={<DashboardTours />} />
-              <Route path="departures" element={<DashboardCalendar />} />
-              <Route path="guests" element={<DashboardGuests />} />
-              <Route path="guides" element={<DashboardGuides />} />
-              <Route path="suppliers" element={<DashboardSuppliers />} />
-              <Route path="analytics" element={<DashboardAnalytics />} />
-              <Route path="enquiries" element={<DashboardEnquiries />} />
-              <Route path="settings" element={<DashboardSettings />} />
+              {[
+                ["bookings", <DashboardBookings />],
+                ["tours", <DashboardTours />],
+                ["departures", <DashboardCalendar />],
+                ["guests", <DashboardGuests />],
+                ["guides", <DashboardGuides />],
+                ["suppliers", <DashboardSuppliers />],
+                ["analytics", <DashboardAnalytics />],
+                ["enquiries", <DashboardEnquiries />],
+              ].map(([path, page]) => (
+                <Route
+                  key={path}
+                  path={path}
+                  element={
+                    <RequirePermission permission={path}>
+                      {page}
+                    </RequirePermission>
+                  }
+                />
+              ))}
+              <Route
+                path="settings"
+                element={
+                  <RequirePermission admin>
+                    <DashboardSettings />
+                  </RequirePermission>
+                }
+              />
             </Route>
           </Route>
         </Routes>

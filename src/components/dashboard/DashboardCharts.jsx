@@ -1,234 +1,509 @@
+import { useLayoutEffect, useRef, useState } from "react";
+
 const money = (value) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value || 0);
 
-export const RevenueAreaChart = ({ data }) => {
-  const series = data?.length ? data : [{ month: "—", amount: 0 }];
-  const values = series.map((item) => item.amount);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const points = series.map((item, index) => {
-    const x = (index / Math.max(series.length - 1, 1)) * 100;
-    const y = 82 - ((item.amount - min) / range) * 58;
-    return { ...item, x, y };
-  });
-  const linePath = points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
-  const areaPath = `${linePath} L 100 92 L 0 92 Z`;
+const compactMoney = (value) =>
+  value >= 1000
+    ? `$${new Intl.NumberFormat("en-US", {
+        maximumFractionDigits: value >= 10000 ? 0 : 1,
+      }).format(value / 1000)}K`
+    : `$${Math.round(value)}`;
+
+const percent = (part, total) =>
+  total ? Math.round((part / total) * 100) : 0;
+
+// Series colours follow the entity, never its rank.
+const SOURCE_COLORS = {
+  website: "var(--viz-1)",
+  agent: "var(--viz-2)",
+  repeat: "var(--viz-3)",
+  social: "var(--viz-4)",
+};
+const STATUS_META = {
+  pending: { label: "Pending", color: "var(--status-pending)" },
+  waitlist: { label: "Waitlist", color: "var(--status-waitlist)" },
+  confirmed: { label: "Confirmed", color: "var(--status-confirmed)" },
+  cancelled: { label: "Cancelled", color: "var(--status-cancelled)" },
+};
+
+function useWidth() {
+  const ref = useRef(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+    const observer = new ResizeObserver(([entry]) =>
+      setWidth(Math.floor(entry.contentRect.width)),
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, width];
+}
+
+function niceTicks(max, count = 4) {
+  if (max <= 0) return [0, 1000, 2000, 3000, 4000].slice(0, count + 1);
+  const rough = max / count;
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const step =
+    [1, 2, 2.5, 5, 10].find((m) => m * magnitude >= rough) * magnitude;
+  return Array.from({ length: count + 1 }, (_, i) => i * step);
+}
+
+function Tooltip({ tip }) {
+  if (!tip) return null;
+  return (
+    <div
+      className="viz-tooltip"
+      role="presentation"
+      style={{ left: tip.x, top: tip.y }}
+    >
+      <strong>{tip.value}</strong>
+      <span>{tip.label}</span>
+      {tip.detail && <small>{tip.detail}</small>}
+    </div>
+  );
+}
+
+/** Monthly totals as columns: discrete periods, honest with sparse data. */
+export const RevenueColumnChart = ({ data, height = 250 }) => {
+  const [ref, width] = useWidth();
+  const [active, setActive] = useState(null);
+  const series = data?.length ? data : [];
+  const margin = { top: 26, right: 4, bottom: 34, left: 46 };
+  const plotW = Math.max(width - margin.left - margin.right, 0);
+  const plotH = height - margin.top - margin.bottom;
+  const ticks = niceTicks(Math.max(...series.map((d) => d.amount), 0));
+  const top = ticks[ticks.length - 1] || 1;
+  const band = series.length ? plotW / series.length : 0;
+  const barW = Math.min(28, band * 0.5);
+  const y = (value) => margin.top + plotH - (value / top) * plotH;
+  const peak = series.reduce(
+    (best, d, i) => (d.amount > (series[best]?.amount ?? 0) ? i : best),
+    0,
+  );
+
+  const show = (i) => {
+    const d = series[i];
+    setActive({
+      index: i,
+      x: margin.left + band * i + band / 2,
+      y: Math.min(y(d.amount), margin.top + plotH - 8) - 10,
+      value: money(d.amount),
+      label: `${d.month} ${d.year ?? ""}`.trim(),
+      detail: `${d.bookings ?? 0} confirmed ${d.bookings === 1 ? "booking" : "bookings"}`,
+    });
+  };
 
   return (
-    <div className="w-full">
-      <div className="w-full overflow-hidden rounded-md bg-[#f5f8f2]">
+    <div className="viz-frame" ref={ref} onPointerLeave={() => setActive(null)}>
+      {width > 0 && (
         <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          className="block h-72 w-full"
+          width={width}
+          height={height}
           role="img"
-          aria-label="Confirmed trip value chart"
+          aria-label="Confirmed trip value by month"
         >
-          <defs>
-            <linearGradient id="revenueFill" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#6f9b75" stopOpacity="0.32" />
-              <stop offset="100%" stopColor="#6f9b75" stopOpacity="0.02" />
-            </linearGradient>
-          </defs>
-          {[24, 40, 56, 72, 88].map((y) => (
-            <line
-              key={y}
-              x1="0"
-              x2="100"
-              y1={y}
-              y2={y}
-              stroke="#233d33"
-              strokeOpacity="0.06"
-              strokeWidth="0.6"
-              vectorEffect="non-scaling-stroke"
-            />
+          {ticks.map((tick) => (
+            <g key={tick}>
+              <line
+                className="viz-grid"
+                x1={margin.left}
+                x2={width - margin.right}
+                y1={y(tick)}
+                y2={y(tick)}
+              />
+              <text
+                className="viz-axis-label"
+                x={margin.left - 10}
+                y={y(tick)}
+                dy="0.32em"
+                textAnchor="end"
+              >
+                {compactMoney(tick)}
+              </text>
+            </g>
           ))}
-          <path d={areaPath} fill="url(#revenueFill)" />
-          <path
-            d={linePath}
-            fill="none"
-            stroke="#285547"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2.8"
-            vectorEffect="non-scaling-stroke"
+          {series.map((d, i) => {
+            const cx = margin.left + band * i + band / 2;
+            const h = Math.max((d.amount / top) * plotH, 0);
+            const r = Math.min(4, h);
+            const x0 = cx - barW / 2;
+            const yb = margin.top + plotH;
+            const path =
+              h > 0
+                ? `M${x0},${yb} V${yb - h + r} Q${x0},${yb - h} ${x0 + r},${yb - h} H${x0 + barW - r} Q${x0 + barW},${yb - h} ${x0 + barW},${yb - h + r} V${yb} Z`
+                : "";
+            const isActive = active?.index === i;
+            return (
+              <g
+                key={`${d.month}-${d.year}`}
+                tabIndex={0}
+                className="viz-hit"
+                aria-label={`${d.month} ${d.year ?? ""}: ${money(d.amount)}`}
+                onPointerEnter={() => show(i)}
+                onFocus={() => show(i)}
+                onBlur={() => setActive(null)}
+              >
+                <rect
+                  x={margin.left + band * i}
+                  y={margin.top}
+                  width={band}
+                  height={plotH}
+                  className={`viz-band${isActive ? " is-active" : ""}`}
+                />
+                {h > 0 ? (
+                  <path
+                    d={path}
+                    className="viz-column"
+                    style={{ opacity: active && !isActive ? 0.55 : 1 }}
+                  />
+                ) : (
+                  <line
+                    className="viz-zero"
+                    x1={x0}
+                    x2={x0 + barW}
+                    y1={yb - 1}
+                    y2={yb - 1}
+                  />
+                )}
+                {i === peak && d.amount > 0 && !active && (
+                  <text
+                    className="viz-value-label"
+                    x={cx}
+                    y={yb - h - 9}
+                    textAnchor="middle"
+                  >
+                    {compactMoney(d.amount)}
+                  </text>
+                )}
+                <text
+                  className="viz-axis-label"
+                  x={cx}
+                  y={height - 12}
+                  textAnchor="middle"
+                >
+                  {d.month}
+                </text>
+              </g>
+            );
+          })}
+          <line
+            className="viz-baseline"
+            x1={margin.left}
+            x2={width - margin.right}
+            y1={margin.top + plotH}
+            y2={margin.top + plotH}
           />
-          {points.map((point) => (
-            <circle
-              key={point.month}
-              cx={point.x}
-              cy={point.y}
-              r="2.2"
-              fill="#285547"
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
         </svg>
+      )}
+      <Tooltip tip={active} />
+      <table className="sr-only">
+        <caption>Confirmed trip value by month</caption>
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Trip value</th>
+            <th>Confirmed bookings</th>
+          </tr>
+        </thead>
+        <tbody>
+          {series.map((d) => (
+            <tr key={`${d.month}-${d.year}`}>
+              <td>
+                {d.month} {d.year}
+              </td>
+              <td>{money(d.amount)}</td>
+              <td>{d.bookings ?? 0}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+// Kept for existing imports.
+export const RevenueAreaChart = RevenueColumnChart;
+
+/** Headline figures that sit above the trend chart. */
+export const TrendSummary = ({ data }) => {
+  const total = (data || []).reduce((sum, d) => sum + d.amount, 0);
+  const bookings = (data || []).reduce((sum, d) => sum + (d.bookings || 0), 0);
+  const best = (data || []).reduce(
+    (top, d) => (d.amount > (top?.amount ?? 0) ? d : top),
+    null,
+  );
+  return (
+    <div className="viz-summary">
+      <div>
+        <span>Last {data?.length || 0} months</span>
+        <strong>{money(total)}</strong>
       </div>
-      <div className="mt-4 grid w-full grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-        {series.map((item) => (
-          <div key={item.month} className="rounded-md bg-[#f5f8f2] p-3">
-            <p className="text-xs font-medium text-[#75806f]">{item.month}</p>
-            <p className="mt-1 text-sm font-medium text-[#233d33]">
-              {money(item.amount)}
-            </p>
-          </div>
-        ))}
+      <div>
+        <span>Confirmed bookings</span>
+        <strong>{bookings}</strong>
+      </div>
+      <div>
+        <span>Strongest month</span>
+        <strong>{best ? `${best.month} ${best.year ?? ""}` : "—"}</strong>
       </div>
     </div>
   );
 };
 
+/** Part-to-whole of booking requests by status: one stacked bar + legend. */
+export const PipelineBar = ({ data }) => {
+  const [active, setActive] = useState(null);
+  const rows = data?.length ? data : [];
+  const total = rows.reduce((sum, d) => sum + d.count, 0);
+  if (!total)
+    return (
+      <p className="portal-empty-copy">
+        Booking requests will be summarised here.
+      </p>
+    );
+  return (
+    <div className="viz-pipeline">
+      <div className="viz-pipeline-head">
+        <strong>{total}</strong>
+        <span>booking requests on record</span>
+      </div>
+      <div className="viz-stack" role="img" aria-label="Requests by status">
+        {rows
+          .filter((d) => d.count > 0)
+          .map((d) => (
+            <span
+              key={d.status}
+              tabIndex={0}
+              className={active && active !== d.status ? "is-dim" : ""}
+              style={{
+                flexGrow: d.count,
+                background: STATUS_META[d.status]?.color,
+              }}
+              aria-label={`${STATUS_META[d.status]?.label}: ${d.count}`}
+              onPointerEnter={() => setActive(d.status)}
+              onPointerLeave={() => setActive(null)}
+              onFocus={() => setActive(d.status)}
+              onBlur={() => setActive(null)}
+            />
+          ))}
+      </div>
+      <ul className="viz-legend-list">
+        {rows.map((d) => (
+          <li
+            key={d.status}
+            className={active && active !== d.status ? "is-dim" : ""}
+          >
+            <span
+              className="viz-swatch"
+              style={{ background: STATUS_META[d.status]?.color }}
+            />
+            <span>{STATUS_META[d.status]?.label || d.status}</span>
+            <strong>{d.count}</strong>
+            <small>{percent(d.count, total)}%</small>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+/** A single fill meter: value arc on a lighter step of the same hue. */
+export const CapacityDonut = ({ value = 0, label, detail, booked, total }) => {
+  const radius = 44;
+  const circumference = 2 * Math.PI * radius;
+  const fill = Math.min(Math.max(value, 0), 100);
+  const dash = (fill / 100) * circumference;
+  return (
+    <div className="viz-gauge">
+      <div className="viz-gauge-ring">
+        <svg viewBox="0 0 110 110" role="img" aria-label={`${fill}% filled`}>
+          <circle className="viz-gauge-track" cx="55" cy="55" r={radius} />
+          {fill > 0 && (
+            <circle
+              className="viz-gauge-value"
+              cx="55"
+              cy="55"
+              r={radius}
+              strokeDasharray={`${dash} ${circumference}`}
+              transform="rotate(-90 55 55)"
+            />
+          )}
+        </svg>
+        <div>
+          <strong>{fill}%</strong>
+          <span>filled</span>
+        </div>
+      </div>
+      <div className="viz-gauge-copy">
+        <p>{label}</p>
+        {total !== undefined && (
+          <strong>
+            {booked} of {total} places
+          </strong>
+        )}
+        <span>{detail}</span>
+      </div>
+    </div>
+  );
+};
+
+/** Upcoming departures, each as a capacity meter. */
+export const DepartureFillList = ({ data }) => {
+  const rows = data?.length ? data : [];
+  if (!rows.length)
+    return (
+      <p className="portal-empty-copy">
+        Add a future departure to track its capacity.
+      </p>
+    );
+  return (
+    <ul className="viz-meter-list">
+      {rows.map((d) => {
+        const date = new Date(d.startDate);
+        const fill = percent(d.booked, d.seats);
+        return (
+          <li key={d.id}>
+            <span className="viz-date-chip">
+              <strong>{date.getDate()}</strong>
+              {date.toLocaleString("en-GB", { month: "short" })}
+            </span>
+            <div>
+              <p>
+                <span>{d.tour}</span>
+                <small>
+                  {d.booked}/{d.seats} · {fill}%
+                </small>
+              </p>
+              <span
+                className="viz-meter"
+                role="meter"
+                aria-valuemin={0}
+                aria-valuemax={d.seats}
+                aria-valuenow={d.booked}
+                aria-label={`${d.tour} capacity`}
+              >
+                <span style={{ width: `${Math.max(fill, fill ? 3 : 0)}%` }} />
+              </span>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+};
+
+/** One series, so one colour; value sits at the bar tip. */
 export const DestinationBars = ({ data }) => {
   const rows = data?.length ? data : [];
-  const max = Math.max(...rows.map((item) => item.share), 1);
-
+  const max = Math.max(...rows.map((item) => item.bookings), 1);
   if (!rows.length)
     return (
       <p className="portal-empty-copy">
         Destination insights will appear after a journey is confirmed.
       </p>
     );
-
   return (
-    <div className="space-y-4">
+    <ul className="viz-bar-list">
       {rows.map((item) => (
-        <div key={item.name}>
-          <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-            <span className="font-medium text-[#233d33]">{item.name}</span>
-            <span className="text-[#75806f]">
-              {item.share}% · {item.bookings} bookings
-            </span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-[#e7eee4]">
-            <div
-              className="h-full rounded-full bg-[#82aa79]"
-              style={{ width: `${Math.round((item.share / max) * 100)}%` }}
-            />
-          </div>
-        </div>
+        <li key={item.name}>
+          <span className="viz-bar-name">{item.name}</span>
+          <span className="viz-bar-track">
+            <span style={{ width: `${(item.bookings / max) * 100}%` }} />
+          </span>
+          <span className="viz-bar-value">
+            <strong>{item.bookings}</strong> · {item.share}%
+          </span>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 };
 
-export const CapacityDonut = ({ value = 0, label, detail }) => {
-  const radius = 42;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (Math.min(value, 100) / 100) * circumference;
-
-  return (
-    <div className="flex items-center gap-4 rounded-md bg-[#f5f8f2] p-4">
-      <div className="relative h-28 w-28 shrink-0">
-        <svg viewBox="0 0 100 100" className="-rotate-90">
-          <circle
-            cx="50"
-            cy="50"
-            r={radius}
-            fill="none"
-            stroke="#233d33"
-            strokeOpacity="0.08"
-            strokeWidth="10"
-          />
-          <circle
-            cx="50"
-            cy="50"
-            r={radius}
-            fill="none"
-            stroke="#285547"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            strokeWidth="10"
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center font-volkhov text-2xl font-normal text-[#233d33]">
-          {value}%
-        </div>
-      </div>
-      <div>
-        <p className="text-sm font-medium text-[#75806f]">{label}</p>
-        <p className="mt-1 text-base font-normal leading-relaxed text-[#233d33]">
-          {detail}
-        </p>
-      </div>
-    </div>
-  );
-};
-
+/** Part-to-whole for four sources: a donut with surface gaps and a legend. */
 export const LeadSourceDonut = ({ data }) => {
+  const [active, setActive] = useState(null);
   const series = data?.length ? data : [];
-  const total = series.reduce((sum, item) => sum + item.value, 0) || 1;
-  let running = 0;
+  const total = series.reduce((sum, item) => sum + (item.count ?? 0), 0);
   const radius = 42;
+  const stroke = 13;
   const circumference = 2 * Math.PI * radius;
-
+  const visible = series.filter((item) => item.count > 0);
+  const gap = visible.length > 1 ? 3 : 0;
+  let running = 0;
+  const current = series.find((item) => item.key === active);
   return (
-    <div className="grid gap-5 sm:grid-cols-[160px_minmax(0,1fr)] sm:items-center">
-      <div className="relative mx-auto h-40 w-40">
-        <svg viewBox="0 0 100 100" className="-rotate-90">
+    <div className="viz-donut">
+      <div className="viz-donut-ring">
+        <svg viewBox="0 0 110 110" role="img" aria-label="Booking sources">
           <circle
-            cx="50"
-            cy="50"
+            className="viz-gauge-track"
+            cx="55"
+            cy="55"
             r={radius}
-            fill="none"
-            stroke="#233d33"
-            strokeOpacity="0.06"
-            strokeWidth="12"
+            style={{ strokeWidth: stroke }}
           />
-          {series.map((item) => {
-            const length = (item.value / total) * circumference;
-            const dashOffset = -running;
-            running += length;
-            return (
-              <circle
-                key={item.name}
-                cx="50"
-                cy="50"
-                r={radius}
-                fill="none"
-                stroke={item.color}
-                strokeDasharray={`${length} ${circumference - length}`}
-                strokeDashoffset={dashOffset}
-                strokeLinecap="round"
-                strokeWidth="12"
-              />
-            );
-          })}
+          {total > 0 &&
+            visible.map((item) => {
+              const length = (item.count / total) * circumference;
+              const offset = running;
+              running += length;
+              return (
+                <circle
+                  key={item.key}
+                  cx="55"
+                  cy="55"
+                  r={radius}
+                  fill="none"
+                  stroke={SOURCE_COLORS[item.key]}
+                  strokeWidth={stroke}
+                  strokeDasharray={`${Math.max(length - gap, 0.5)} ${circumference}`}
+                  strokeDashoffset={-offset}
+                  transform="rotate(-90 55 55)"
+                  className={`viz-donut-segment${active && active !== item.key ? " is-dim" : ""}`}
+                  onPointerEnter={() => setActive(item.key)}
+                  onPointerLeave={() => setActive(null)}
+                />
+              );
+            })}
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-          <p className="font-volkhov text-3xl font-normal text-[#233d33]">
-            {series.some((item) => item.value) ? "100%" : "0%"}
-          </p>
-          <p className="text-xs font-medium text-[#75806f]">sources</p>
+        <div>
+          <strong>{current ? current.count : total}</strong>
+          <span>
+            {current
+              ? current.name
+              : total === 1
+                ? "booking"
+                : "confirmed bookings"}
+          </span>
         </div>
       </div>
-      <div className="space-y-3">
+      <ul className="viz-legend-list">
         {series.map((item) => (
-          <div
-            key={item.name}
-            className="flex items-center justify-between gap-3"
+          <li
+            key={item.key}
+            tabIndex={0}
+            className={active && active !== item.key ? "is-dim" : ""}
+            onPointerEnter={() => setActive(item.key)}
+            onPointerLeave={() => setActive(null)}
+            onFocus={() => setActive(item.key)}
+            onBlur={() => setActive(null)}
           >
-            <div className="flex items-center gap-2">
-              <span
-                className="h-3 w-3 rounded-full"
-                style={{ backgroundColor: item.color }}
-              />
-              <span className="text-sm font-medium text-[#233d33]">
-                {item.name}
-              </span>
-            </div>
-            <span className="text-sm text-[#75806f]">{item.value}%</span>
-          </div>
+            <span
+              className="viz-swatch"
+              style={{ background: SOURCE_COLORS[item.key] }}
+            />
+            <span>{item.name}</span>
+            <strong>{item.count ?? 0}</strong>
+            <small>{percent(item.count ?? 0, total)}%</small>
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 };

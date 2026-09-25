@@ -4,7 +4,11 @@ import { Tour } from "../models/Tour.js";
 import { Departure } from "../models/Departure.js";
 import { Booking } from "../models/Booking.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { optionalAuth, protect, requireStaff } from "../middleware/auth.js";
+import {
+  optionalAuth,
+  protect,
+  requirePermission,
+} from "../middleware/auth.js";
 import { AppError } from "../utils/AppError.js";
 import { logActivity } from "../utils/activity.js";
 
@@ -164,7 +168,7 @@ const tourBody = z.object({
 router.post(
   "/",
   protect,
-  requireStaff,
+  requirePermission("tours"),
   asyncHandler(async (req, res) => {
     const data = tourBody.parse(req.body);
     const slug = data.slug || slugify(data.title);
@@ -179,7 +183,7 @@ router.post(
 router.patch(
   "/:id",
   protect,
-  requireStaff,
+  requirePermission("tours"),
   asyncHandler(async (req, res) => {
     const data = tourBody.partial().parse(req.body);
     const tour = await Tour.findByIdAndUpdate(req.params.id, data, {
@@ -194,7 +198,7 @@ router.patch(
 router.delete(
   "/:id",
   protect,
-  requireStaff,
+  requirePermission("tours"),
   asyncHandler(async (req, res) => {
     const tour = await Tour.findById(req.params.id);
     if (!tour) throw new AppError("Tour not found", 404);

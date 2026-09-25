@@ -522,14 +522,170 @@ test("staff CRUD, analytics and settings remain accessible", async () => {
     assert.equal(update.status, 200);
     assert.equal((await request(path, { token: admin })).status, 200);
   }
+  const analytics = await request("/analytics/overview", { token: admin });
+  assert.equal(analytics.status, 200);
+  assert.equal(analytics.data.revenueByMonth.length, 6);
+  assert.deepEqual(
+    analytics.data.pipeline.map((row) => row.status),
+    ["pending", "waitlist", "confirmed", "cancelled"],
+  );
   assert.equal(
-    (await request("/analytics/overview", { token: admin })).status,
-    200,
+    analytics.data.pipeline.reduce((sum, row) => sum + row.count, 0),
+    await Booking.countDocuments(),
+  );
+  assert.ok(
+    analytics.data.leadSources.every((row) => Number.isInteger(row.count)),
   );
   assert.equal(
     (await request("/settings", { token: admin })).data.settings.bookingMode,
     "request",
   );
+});
+
+test("only administrators manage the team and staff permissions are enforced", async () => {
+  const staffLogin = { email: "desk@test.example", password: "DeskPassword1!" };
+  // Customers cannot reach team management or settings.
+  assert.equal((await request("/team", { token: customer })).status, 403);
+  assert.equal((await request("/settings", { token: customer })).status, 403);
+
+  const created = await request("/team", {
+    method: "POST",
+    token: admin,
+    body: {
+      name: "Front Desk",
+      ...staffLogin,
+      role: "staff",
+      permissions: ["bookings", "enquiries"],
+    },
+  });
+  assert.equal(created.status, 201);
+  const member = created.data.member;
+  assert.deepEqual(member.permissions, ["bookings", "enquiries"]);
+  assert.equal(
+    (
+      await request("/team", {
+        method: "POST",
+        token: admin,
+        body: { name: "Duplicate", ...staffLogin, permissions: [] },
+      })
+    ).status,
+    409,
+  );
+
+  const login = await request("/auth/login", {
+    method: "POST",
+    body: staffLogin,
+  });
+  assert.equal(login.status, 200);
+  const desk = login.data.token;
+  assert.deepEqual(login.data.user.permissions, ["bookings", "enquiries"]);
+  assert.equal((await request("/bookings", { token: desk })).status, 200);
+  assert.equal((await request("/enquiries", { token: desk })).status, 200);
+  for (const path of ["/guests", "/suppliers", "/analytics/overview"])
+    assert.equal((await request(path, { token: desk })).status, 403, path);
+  assert.equal(
+    (
+      await request("/tours", {
+        method: "POST",
+        token: desk,
+        body: { title: "Not allowed", region: "Europe", basePrice: 100 },
+      })
+    ).status,
+    403,
+  );
+  // Staff cannot manage the team or create other staff.
+  assert.equal((await request("/team", { token: desk })).status, 403);
+  assert.equal(
+    (
+      await request("/team", {
+        method: "POST",
+        token: desk,
+        body: {
+          name: "Sneaky",
+          email: "sneaky@test.example",
+          password: "Sneaky12345!",
+        },
+      })
+    ).status,
+    403,
+  );
+
+  // Granting a permission takes effect on the next request.
+  const granted = await request("/team/" + member.id, {
+    method: "PATCH",
+    token: admin,
+    body: { permissions: ["bookings", "enquiries", "guests"] },
+  });
+  assert.equal(granted.status, 200);
+  assert.equal((await request("/guests", { token: desk })).status, 200);
+
+  // Staff can change their own password; the old one stops working.
+  assert.equal(
+    (
+      await request("/auth/password", {
+        method: "POST",
+        token: desk,
+        body: { currentPassword: "wrong", newPassword: "NewDesk12345!" },
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await request("/auth/password", {
+        method: "POST",
+        token: desk,
+        body: {
+          currentPassword: staffLogin.password,
+          newPassword: "NewDesk12345!",
+        },
+      })
+    ).status,
+    200,
+  );
+
+  // Deactivation blocks existing sessions and new sign-ins.
+  await request("/team/" + member.id, {
+    method: "PATCH",
+    token: admin,
+    body: { active: false },
+  });
+  assert.equal((await request("/bookings", { token: desk })).status, 401);
+  assert.equal(
+    (
+      await request("/auth/login", {
+        method: "POST",
+        body: { email: staffLogin.email, password: "NewDesk12345!" },
+      })
+    ).status,
+    403,
+  );
+
+  // An administrator cannot lock themselves out.
+  const adminId = (await request("/auth/me", { token: admin })).data.user.id;
+  for (const body of [{ active: false }, { role: "staff" }])
+    assert.equal(
+      (
+        await request("/team/" + adminId, {
+          method: "PATCH",
+          token: admin,
+          body,
+        })
+      ).status,
+      409,
+    );
+  assert.equal(
+    (await request("/team/" + adminId, { method: "DELETE", token: admin }))
+      .status,
+    409,
+  );
+
+  const removed = await request("/team/" + member.id, {
+    method: "DELETE",
+    token: admin,
+  });
+  assert.equal(removed.status, 200);
+  assert.equal(await User.exists({ email: staffLogin.email }), null);
 });
 
 test("guest-to-account linking requires the original receipt token and matching email", async () => {

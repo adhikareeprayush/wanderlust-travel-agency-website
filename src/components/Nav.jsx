@@ -63,17 +63,34 @@ export default function Nav() {
             ["/packages", "Destinations"],
             ["/about", "Our story"],
             ["/contact", "Plan my trip"],
-            [
-              user ? "/account/bookings" : "/login",
-              user ? "My trips" : "Sign in",
-            ],
-            ...(isStaff ? [["/dashboard", "Dashboard"]] : []),
+            !user
+              ? ["/login", "Sign in"]
+              : isStaff
+                ? ["/dashboard", "Dashboard"]
+                : ["/account/bookings", "My trips"],
           ].map(([to, label]) => (
-            <Link key={to} to={to} onClick={() => setOpen(false)}>
+            <NavLink
+              key={to}
+              to={to}
+              end={to === "/"}
+              onClick={() => setOpen(false)}
+            >
               {label}
               <Icon name="arrow" size={16} />
-            </Link>
+            </NavLink>
           ))}
+          {user && (
+            <button
+              type="button"
+              className="mobile-signout"
+              onClick={() => {
+                setOpen(false);
+                logout();
+              }}
+            >
+              Sign out
+            </button>
+          )}
         </nav>
       )}
     </header>

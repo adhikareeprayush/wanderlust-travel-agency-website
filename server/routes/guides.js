@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { Guide } from "../models/Guide.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { protect, requireStaff } from "../middleware/auth.js";
+import { protect, requirePermission } from "../middleware/auth.js";
 import { AppError } from "../utils/AppError.js";
 import { logActivity } from "../utils/activity.js";
 
@@ -11,7 +11,7 @@ const router = Router();
 router.get(
   "/",
   protect,
-  requireStaff,
+  requirePermission("guides", "departures"),
   asyncHandler(async (_req, res) => {
     const guides = await Guide.find()
       .populate("tours", "title slug")
@@ -36,7 +36,7 @@ const schema = z.object({
 router.post(
   "/",
   protect,
-  requireStaff,
+  requirePermission("guides"),
   asyncHandler(async (req, res) => {
     const data = schema.parse(req.body);
     const guide = await Guide.create(data);
@@ -48,7 +48,7 @@ router.post(
 router.patch(
   "/:id",
   protect,
-  requireStaff,
+  requirePermission("guides"),
   asyncHandler(async (req, res) => {
     const data = schema.partial().parse(req.body);
     const guide = await Guide.findByIdAndUpdate(req.params.id, data, {
@@ -62,7 +62,7 @@ router.patch(
 router.delete(
   "/:id",
   protect,
-  requireStaff,
+  requirePermission("guides"),
   asyncHandler(async (req, res) => {
     const guide = await Guide.findByIdAndDelete(req.params.id);
     if (!guide) throw new AppError("Guide not found", 404);

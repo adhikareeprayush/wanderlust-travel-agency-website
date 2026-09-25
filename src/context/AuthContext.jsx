@@ -87,6 +87,11 @@ export function AuthProvider({ children }) {
       updateProfile,
       isAuthenticated: Boolean(user),
       isStaff: user?.role === "staff" || user?.role === "admin",
+      isAdmin: user?.role === "admin",
+      can: (permission) =>
+        user?.role === "admin" ||
+        (user?.role === "staff" &&
+          Boolean(user.permissions?.includes(permission))),
     }),
     [user, ready, login, register, logout, updateProfile],
   );

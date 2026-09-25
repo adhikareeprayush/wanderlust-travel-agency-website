@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { protect, requireStaff } from "../middleware/auth.js";
+import { protect, requireAdmin } from "../middleware/auth.js";
 import { env } from "../config/env.js";
 const router = Router();
-router.use(protect, requireStaff);
+router.use(protect, requireAdmin);
 router.get("/", (_req, res) =>
   res.json({
     settings: {

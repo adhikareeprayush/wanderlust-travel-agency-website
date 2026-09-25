@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { Subscriber } from "../models/Subscriber.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { protect, requireStaff } from "../middleware/auth.js";
+import { protect, requirePermission } from "../middleware/auth.js";
 const router = Router();
 router.post(
   "/",
@@ -21,7 +21,7 @@ router.post(
 router.get(
   "/",
   protect,
-  requireStaff,
+  requirePermission("enquiries"),
   asyncHandler(async (_req, res) =>
     res.json({
       subscribers: await Subscriber.find().sort({ createdAt: -1 }).limit(1000),

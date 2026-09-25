@@ -3,23 +3,86 @@ import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import {
   Card,
+  LoadingState,
   StatCard,
   StatusBadge,
 } from "../../components/dashboard/DashboardUi";
 import {
   CapacityDonut,
-  RevenueAreaChart,
+  RevenueColumnChart,
+  TrendSummary,
 } from "../../components/dashboard/DashboardCharts";
 import { formatDate, formatMoney } from "../../lib/tourImages";
+import { PERMISSIONS } from "../../lib/permissions";
+import { useAuth } from "../../context/useAuth";
 import Icon from "../../components/Icon";
+
+// Staff without analytics access still get a useful starting point.
+function StaffWelcome({ user, can }) {
+  const areas = PERMISSIONS.filter(
+    (item) => item.key !== "analytics" && can(item.key),
+  );
+  return (
+    <div className="portal-page portal-overview">
+      <section className="portal-overview-hero">
+        <div className="portal-overview-photo" />
+        <div className="portal-overview-copy">
+          <p className="portal-overline">YOUR WORKSPACE · WANDERLUST TRAVEL</p>
+          <h2>
+            Welcome back,
+            <br />
+            <em>{user?.name?.split(" ")[0] || "there"}.</em>
+          </h2>
+          <p>Everything you look after for our travellers, in one place.</p>
+        </div>
+      </section>
+      <div className="portal-section-title">
+        <div>
+          <p className="eyebrow">YOUR AREAS</p>
+          <h2>Where to next?</h2>
+        </div>
+      </div>
+      {areas.length ? (
+        <div className="portal-area-grid">
+          {areas.map((item) => (
+            <Link
+              key={item.key}
+              to={`/dashboard/${item.key}`}
+              className="portal-area-card"
+            >
+              <span className="portal-settings-icon" aria-hidden="true">
+                <Icon name={item.icon} size={18} />
+              </span>
+              <strong>{item.label}</strong>
+              <p>{item.description}</p>
+              <Icon name="arrow" size={16} />
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="portal-card">
+          <p className="portal-empty-copy" style={{ padding: 24 }}>
+            No workspace areas have been assigned to you yet. Ask an
+            administrator to set up your permissions.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardHome() {
+  const { user, can } = useAuth();
+  const hasAnalytics = can("analytics");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   useEffect(() => {
+    if (!hasAnalytics) return;
     api("/analytics/overview")
       .then(setData)
       .catch((e) => setError(e.message));
-  }, []);
+  }, [hasAnalytics]);
+  if (!hasAnalytics) return <StaffWelcome user={user} can={can} />;
   if (error)
     return (
       <div className="portal-page">
@@ -31,11 +94,31 @@ export default function DashboardHome() {
   if (!data)
     return (
       <div className="portal-page">
-        <p role="status">Loading your workspace…</p>
+        <LoadingState>Loading your workspace…</LoadingState>
       </div>
     );
   const pending =
     data.stats.find((stat) => stat.id === "bookings")?.value || "0";
+  const quickLinks = [
+    {
+      to: "/dashboard/departures",
+      icon: "calendar",
+      label: "Manage departure dates",
+      permission: "departures",
+    },
+    {
+      to: "/dashboard/enquiries",
+      icon: "mail",
+      label: "Read new enquiries",
+      permission: "enquiries",
+    },
+    {
+      to: "/dashboard/tours",
+      icon: "pin",
+      label: "Update journeys",
+      permission: "tours",
+    },
+  ].filter((item) => can(item.permission));
   return (
     <div className="portal-page portal-overview">
       <section className="portal-overview-hero">
@@ -45,14 +128,16 @@ export default function DashboardHome() {
           <h2>
             Good journeys start
             <br />
-            with great care.
+            <em>with great care.</em>
           </h2>
           <p>
             A clear view of the requests, people and plans that matter today.
           </p>
-          <Link to="/dashboard/bookings" className="portal-hero-button">
-            Review booking requests <Icon name="arrow" size={17} />
-          </Link>
+          {can("bookings") && (
+            <Link to="/dashboard/bookings" className="portal-hero-button">
+              Review booking requests <Icon name="arrow" size={17} />
+            </Link>
+          )}
         </div>
         <div className="portal-overview-callout">
           <span>REQUESTS TO REVIEW</span>
@@ -77,8 +162,14 @@ export default function DashboardHome() {
           title="Confirmed trip value"
           subtitle="Monthly value of confirmed journeys"
           className="portal-chart-card"
+          action={
+            <Link className="portal-card-link" to="/dashboard/analytics">
+              Full analytics <Icon name="arrow" size={16} />
+            </Link>
+          }
         >
-          <RevenueAreaChart data={data.revenueByMonth} />
+          <TrendSummary data={data.revenueByMonth} />
+          <RevenueColumnChart data={data.revenueByMonth} />
         </Card>
         <Card
           title="Capacity health"
@@ -86,31 +177,27 @@ export default function DashboardHome() {
         >
           <CapacityDonut
             value={data.occupancy}
+            booked={data.seats?.booked}
+            total={data.seats?.total}
             label="Average departure fill"
-            detail="Calculated from confirmed places on upcoming departures."
+            detail="Confirmed places on upcoming departures."
           />
-          <div className="portal-card-divider" />
-          <p className="portal-mini-label">QUICK ACCESS</p>
-          <div className="portal-quick-links">
-            <Link to="/dashboard/departures">
-              <span>
-                <Icon name="calendar" size={17} /> Manage departure dates
-              </span>
-              <Icon name="arrow" size={16} />
-            </Link>
-            <Link to="/dashboard/enquiries">
-              <span>
-                <Icon name="mail" size={17} /> Read new enquiries
-              </span>
-              <Icon name="arrow" size={16} />
-            </Link>
-            <Link to="/dashboard/tours">
-              <span>
-                <Icon name="pin" size={17} /> Update journeys
-              </span>
-              <Icon name="arrow" size={16} />
-            </Link>
-          </div>
+          {quickLinks.length > 0 && (
+            <>
+              <div className="portal-card-divider" />
+              <p className="portal-mini-label">QUICK ACCESS</p>
+              <div className="portal-quick-links">
+                {quickLinks.map((item) => (
+                  <Link key={item.to} to={item.to}>
+                    <span>
+                      <Icon name={item.icon} size={17} /> {item.label}
+                    </span>
+                    <Icon name="arrow" size={16} />
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
         </Card>
       </div>
       <div className="portal-overview-grid portal-overview-lower">
@@ -118,13 +205,15 @@ export default function DashboardHome() {
           title="Recent booking requests"
           subtitle="The latest conversations about new journeys"
           action={
-            <Link className="portal-card-link" to="/dashboard/bookings">
-              View all <Icon name="arrow" size={16} />
-            </Link>
+            can("bookings") && (
+              <Link className="portal-card-link" to="/dashboard/bookings">
+                View all <Icon name="arrow" size={16} />
+              </Link>
+            )
           }
         >
           <div className="portal-table-wrap">
-            <table className="portal-data-table">
+            <table className="portal-data-table portal-recent-table">
               <thead>
                 <tr>
                   <th>TRAVELLER</th>
@@ -139,11 +228,13 @@ export default function DashboardHome() {
                   <tr key={booking._id}>
                     <td>
                       <strong>{booking.guestName}</strong>
-                      <span>{booking.reference}</span>
+                      <small>{booking.reference}</small>
                     </td>
                     <td>{booking.tour?.title || "Journey"}</td>
-                    <td>{formatDate(booking.departure?.startDate)}</td>
-                    <td>{formatMoney(booking.total)}</td>
+                    <td className="is-num">
+                      {formatDate(booking.departure?.startDate)}
+                    </td>
+                    <td className="is-num">{formatMoney(booking.total)}</td>
                     <td>
                       <StatusBadge status={booking.status} />
                     </td>

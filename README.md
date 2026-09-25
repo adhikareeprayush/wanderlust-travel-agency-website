@@ -1,6 +1,6 @@
 # Wanderlust Travel
 
-A complete React + Express travel agency application, redesigned with an ivory and forest-green visual system, destination photography, responsive layouts, and a **request → team confirmation** booking process.
+A complete React + Express travel agency application, redesigned with a warm ivory and orange visual system, destination photography, responsive layouts, and a **request → team confirmation** booking process.
 
 ## Run locally
 
@@ -30,6 +30,15 @@ npm run dev
 
 These are local demonstration credentials. Remove or replace demo accounts, inventory, prices and operating details before a public launch.
 
+## Team accounts and permissions
+
+- Visitors can only register **customer** accounts. Staff and administrator accounts are created by an administrator in **Workspace → Team & settings**.
+- Administrators can open every area, create staff, reset their passwords, deactivate or remove them, and grant access per area: bookings, journeys, departures, enquiries, travellers, guides, suppliers and analytics. The access matrix saves changes immediately.
+- Permissions are checked by the server on every request; the workspace also hides areas a person cannot open. Deactivated accounts are signed out and cannot sign in.
+- An administrator cannot change their own role, deactivate or remove themselves, and at least one active administrator always remains.
+- Team members change their own password from the profile menu. They do not use the traveller account area.
+- Staff accounts created before permissions existed keep access to every operational area until an administrator changes them.
+
 ## Working flows
 
 - Homepage destination search, travel month and group-size filters.
@@ -45,6 +54,7 @@ These are local demonstration credentials. Remove or replace demo accounts, inve
 - Contact enquiries with a staff inbox and new/in-progress/closed statuses.
 - Dedicated newsletter subscriber storage and staff subscriber list.
 - Analytics based on saved records. **Confirmed trip value is not collected revenue.**
+- Administrator-managed team accounts with per-area staff permissions.
 - SMTP acknowledgements and booking updates when a mail provider is configured.
 - Production static serving and client route refresh support from Express.
 

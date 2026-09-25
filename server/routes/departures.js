@@ -5,10 +5,10 @@ import { Booking } from "../models/Booking.js";
 import { Tour } from "../models/Tour.js";
 import { Guide } from "../models/Guide.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { protect, requireStaff } from "../middleware/auth.js";
+import { protect, requirePermission } from "../middleware/auth.js";
 import { AppError } from "../utils/AppError.js";
 const router = Router();
-router.use(protect, requireStaff);
+router.use(protect, requirePermission("departures"));
 router.get(
   "/",
   asyncHandler(async (req, res) => {

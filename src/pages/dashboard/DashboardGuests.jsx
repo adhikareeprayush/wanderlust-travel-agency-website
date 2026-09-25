@@ -1,7 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client";
-import { Card } from "../../components/dashboard/DashboardUi";
+import {
+  Avatar,
+  Card,
+  ConfirmDialog,
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  SearchField,
+  SummaryStrip,
+  Toolbar,
+} from "../../components/dashboard/DashboardUi";
 import Modal from "../../components/dashboard/Modal";
+import Icon from "../../components/Icon";
 import { formatMoney } from "../../lib/tourImages";
 
 const empty = {
@@ -12,22 +23,71 @@ const empty = {
   notes: "",
   nextTrip: "",
 };
+const segments = [
+  "Traveler",
+  "Repeat guest",
+  "Family",
+  "Couple",
+  "Solo",
+  "Adventure",
+  "Group",
+];
 
 const DashboardGuests = () => {
   const [guests, setGuests] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(empty);
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
+  const [segment, setSegment] = useState("all");
+  const [removing, setRemoving] = useState(null);
+  const [removeError, setRemoveError] = useState("");
 
   const load = () =>
     api("/guests")
       .then((d) => setGuests(d.guests))
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   useEffect(() => {
     load();
   }, []);
+
+  const segmentOptions = useMemo(
+    () => [...new Set(guests.map((g) => g.segment).filter(Boolean))].sort(),
+    [guests],
+  );
+  const visible = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return guests.filter(
+      (g) =>
+        (segment === "all" || g.segment === segment) &&
+        (!term ||
+          [g.name, g.email, g.phone, g.nextTrip, g.notes]
+            .filter(Boolean)
+            .some((value) => value.toLowerCase().includes(term))),
+    );
+  }, [guests, query, segment]);
+
+  const startEdit = (guest) => {
+    setError("");
+    setEditing(guest);
+    setForm(
+      guest
+        ? {
+            name: guest.name,
+            email: guest.email,
+            phone: guest.phone || "",
+            segment: guest.segment || "Traveler",
+            notes: guest.notes || "",
+            nextTrip: guest.nextTrip || "",
+          }
+        : empty,
+    );
+    setOpen(true);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -48,90 +108,179 @@ const DashboardGuests = () => {
     }
   };
 
+  const remove = async () => {
+    setBusy(true);
+    setRemoveError("");
+    try {
+      await api(`/guests/${removing._id}`, { method: "DELETE" });
+      setRemoving(null);
+      load();
+    } catch (err) {
+      setRemoveError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const set = (name, value) => setForm((f) => ({ ...f, [name]: value }));
+  const totalValue = guests.reduce((sum, g) => sum + (g.lifetimeValue || 0), 0);
+
   return (
-    <div className="portal-page space-y-6">
+    <div className="portal-page">
+      <PageHeader
+        eyebrow="PEOPLE BEHIND THE JOURNEYS"
+        title="Travellers"
+        accent="we know by name."
+        description="Contact details, future plans and confirmed trip value. Profiles are created automatically from booking requests."
+        actions={
+          <button
+            type="button"
+            onClick={() => startEdit(null)}
+            className="portal-btn portal-btn-primary"
+          >
+            <Icon name="plus" size={15} /> Add traveller
+          </button>
+        }
+      />
+      <SummaryStrip
+        items={[
+          { label: "Traveller profiles", value: guests.length, icon: "users" },
+          {
+            label: "With a trip planned",
+            value: guests.filter((g) => g.nextTrip).length,
+            icon: "calendar",
+            tone: "good",
+          },
+          {
+            label: "Repeat guests",
+            value: guests.filter((g) => g.segment === "Repeat guest").length,
+            icon: "heart",
+            tone: "info",
+          },
+          {
+            label: "Confirmed trip value",
+            value: formatMoney(totalValue),
+            icon: "dollar",
+          },
+        ]}
+      />
       {error && !open && (
         <p className="error-message" role="alert">
           {error}
         </p>
       )}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="eyebrow">PEOPLE BEHIND THE JOURNEYS</p>
-          <h2 className="font-volkhov text-3xl">Travellers</h2>
-          <p className="mt-1 text-sm text-[#75806f]">
-            Contact details, future plans and confirmed trip value.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setEditing(null);
-            setForm(empty);
-            setOpen(true);
-          }}
-          className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white"
+      <Toolbar>
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder="Search name, email, trip or notes"
+        />
+        <select
+          aria-label="Filter by segment"
+          className="portal-select"
+          value={segment}
+          onChange={(e) => setSegment(e.target.value)}
         >
-          Add traveller
-        </button>
-      </div>
-      <Card
-        title="Traveller directory"
-        subtitle={`${guests.length} live profiles`}
-      >
-        <div className="grid gap-4 lg:grid-cols-2">
-          {guests.map((guest) => (
-            <div
-              key={guest._id}
-              className="rounded-2xl border border-black/5 bg-[#f5f7ef] p-4"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <span className="portal-list-avatar" aria-hidden="true">
-                    {guest.name?.charAt(0).toUpperCase()}
-                  </span>
-                  <div>
-                    <p className="font-medium">{guest.name}</p>
-                    <p className="mt-1 text-sm text-[#75806f]">
-                      {guest.segment} · {guest.nextTrip || "No upcoming trip"}
-                    </p>
-                    <p className="mt-1 text-xs text-[#75806f]">{guest.email}</p>
-                  </div>
-                </div>
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-primary ring-1 ring-black/5">
-                  {formatMoney(guest.lifetimeValue)}
-                </span>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-full bg-white px-3 py-1 text-xs ring-1 ring-black/5">
-                  {guest.notes || "No notes"}
-                </span>
-                <button
-                  type="button"
-                  className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
-                  onClick={() => {
-                    setEditing(guest);
-                    setForm({
-                      name: guest.name,
-                      email: guest.email,
-                      phone: guest.phone || "",
-                      segment: guest.segment,
-                      notes: guest.notes || "",
-                      nextTrip: guest.nextTrip || "",
-                    });
-                    setOpen(true);
-                  }}
-                >
-                  Edit
-                </button>
-              </div>
-            </div>
+          <option value="all">All segments</option>
+          {segmentOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
           ))}
-        </div>
+        </select>
+      </Toolbar>
+      <Card className="portal-table-card">
+        {loading ? (
+          <LoadingState>Loading travellers…</LoadingState>
+        ) : !visible.length ? (
+          <EmptyState
+            icon="users"
+            title={guests.length ? "No travellers match" : "No travellers yet"}
+          >
+            {guests.length
+              ? "Try another search or segment."
+              : "Travellers are added when they request a journey, or you can add one yourself."}
+          </EmptyState>
+        ) : (
+          <div className="portal-table-wrap">
+            <table className="portal-data-table is-responsive">
+              <thead>
+                <tr>
+                  <th>Traveller</th>
+                  <th>Segment</th>
+                  <th>Next journey</th>
+                  <th>Team notes</th>
+                  <th>Trip value</th>
+                  <th className="is-actions">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((guest) => (
+                  <tr key={guest._id}>
+                    <td data-label="Traveller">
+                      <div className="portal-cell-person">
+                        <Avatar name={guest.name} size="sm" />
+                        <div>
+                          <strong>{guest.name}</strong>
+                          <small>
+                            <a href={`mailto:${guest.email}`}>{guest.email}</a>
+                            {guest.phone && ` · ${guest.phone}`}
+                          </small>
+                        </div>
+                      </div>
+                    </td>
+                    <td data-label="Segment">
+                      <span className="portal-chip">
+                        {guest.segment || "Traveler"}
+                      </span>
+                    </td>
+                    <td data-label="Next journey">
+                      {guest.nextTrip || (
+                        <span className="portal-muted">Nothing planned</span>
+                      )}
+                    </td>
+                    <td data-label="Team notes" className="portal-cell-notes">
+                      {guest.notes || <span className="portal-muted">—</span>}
+                    </td>
+                    <td data-label="Trip value" className="is-num">
+                      <strong>{formatMoney(guest.lifetimeValue)}</strong>
+                    </td>
+                    <td className="is-actions">
+                      <div className="portal-row-actions">
+                        <button
+                          type="button"
+                          className="portal-icon-btn"
+                          aria-label={`Edit ${guest.name}`}
+                          onClick={() => startEdit(guest)}
+                        >
+                          <Icon name="edit" size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="portal-icon-btn is-danger"
+                          aria-label={`Delete ${guest.name}`}
+                          onClick={() => {
+                            setRemoveError("");
+                            setRemoving(guest);
+                          }}
+                        >
+                          <Icon name="trash" size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
       {open ? (
         <Modal
           title={editing ? "Edit traveller" : "Add traveller"}
+          description="Trip value is calculated from confirmed bookings."
           onClose={() => setOpen(false)}
         >
           <form className="form-stack" onSubmit={submit}>
@@ -140,48 +289,102 @@ const DashboardGuests = () => {
                 {error}
               </p>
             )}
-            {["name", "email", "phone", "segment", "nextTrip", "notes"].map(
-              (name) => (
-                <label className="field" key={name}>
-                  {
-                    {
-                      name: "Full name",
-                      email: "Email address",
-                      phone: "Phone number",
-                      segment: "Traveller segment",
-                      nextTrip: "Next journey",
-                      notes: "Team notes",
-                    }[name]
-                  }
-                  <input
-                    type={
-                      name === "email"
-                        ? "email"
-                        : name === "phone"
-                          ? "tel"
-                          : "text"
-                    }
-                    required={name === "name" || name === "email"}
-                    placeholder={name}
-                    value={form[name]}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, [name]: e.target.value }))
-                    }
-                    className="rounded-xl border border-black/10 px-3 py-2 text-sm"
-                  />
-                </label>
-              ),
-            )}
-            <button
-              disabled={busy}
-              type="submit"
-              className="rounded-xl bg-primary py-2.5 text-sm text-white"
-            >
-              {busy ? "Saving…" : "Save traveller"}
-            </button>
+            <label className="field">
+              Full name
+              <input
+                required
+                minLength="2"
+                autoComplete="off"
+                value={form.name}
+                onChange={(e) => set("name", e.target.value)}
+              />
+            </label>
+            <div className="form-row">
+              <label className="field">
+                Email address
+                <input
+                  type="email"
+                  required
+                  autoComplete="off"
+                  value={form.email}
+                  onChange={(e) => set("email", e.target.value)}
+                />
+              </label>
+              <label className="field">
+                Phone number
+                <input
+                  type="tel"
+                  autoComplete="off"
+                  value={form.phone}
+                  onChange={(e) => set("phone", e.target.value)}
+                  placeholder="Including country code"
+                />
+              </label>
+            </div>
+            <div className="form-row">
+              <label className="field">
+                Segment
+                <input
+                  list="guest-segments"
+                  value={form.segment}
+                  onChange={(e) => set("segment", e.target.value)}
+                />
+                <datalist id="guest-segments">
+                  {segments.map((option) => (
+                    <option key={option} value={option} />
+                  ))}
+                </datalist>
+              </label>
+              <label className="field">
+                Next journey
+                <input
+                  value={form.nextTrip}
+                  onChange={(e) => set("nextTrip", e.target.value)}
+                  placeholder="e.g. Kyoto Heritage"
+                />
+              </label>
+            </div>
+            <label className="field">
+              Team notes
+              <textarea
+                rows="3"
+                value={form.notes}
+                onChange={(e) => set("notes", e.target.value)}
+                placeholder="Preferences, dietary needs, follow-ups…"
+              />
+            </label>
+            <div className="portal-modal-actions">
+              <button
+                type="button"
+                className="portal-btn portal-btn-secondary"
+                onClick={() => setOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={busy}
+                type="submit"
+                className="portal-btn portal-btn-primary"
+              >
+                {busy ? "Saving…" : editing ? "Save changes" : "Add traveller"}
+              </button>
+            </div>
           </form>
         </Modal>
       ) : null}
+      {removing && (
+        <ConfirmDialog
+          title="Remove this traveller?"
+          confirmLabel="Remove traveller"
+          busy={busy}
+          error={removeError}
+          onClose={() => setRemoving(null)}
+          onConfirm={remove}
+        >
+          <strong>{removing.name}</strong>'s profile will be removed from the
+          directory. Their booking requests are kept.
+        </ConfirmDialog>
+      )}
     </div>
   );
 };

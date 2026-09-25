@@ -1,8 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../../api/client";
-import { Card } from "../../components/dashboard/DashboardUi";
+import {
+  ConfirmDialog,
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  SearchField,
+  Segmented,
+  SummaryStrip,
+  Toolbar,
+} from "../../components/dashboard/DashboardUi";
 import Modal from "../../components/dashboard/Modal";
-import { formatMoney, resolveTourImage } from "../../lib/tourImages";
+import Icon from "../../components/Icon";
+import {
+  formatDate,
+  formatMoney,
+  resolveTourImage,
+} from "../../lib/tourImages";
 
 const empty = {
   title: "",
@@ -25,23 +40,66 @@ const coverChoices = [
   { value: "holiday", label: "Bali" },
   { value: "sec3", label: "Morocco" },
 ];
+const regions = ["Europe", "Asia", "Africa", "South America", "North America"];
 
 const DashboardTours = () => {
   const [tours, setTours] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(empty);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
+  const [view, setView] = useState("all");
+  const [removing, setRemoving] = useState(null);
+  const [removeError, setRemoveError] = useState("");
 
   const load = () =>
     api("/tours?published=all")
       .then((d) => setTours(d.tours))
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
 
   useEffect(() => {
     load();
   }, []);
+
+  const visible = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return tours.filter(
+      (t) =>
+        (view === "all" ||
+          (view === "published" && t.published) ||
+          (view === "draft" && !t.published) ||
+          (view === "featured" && t.featured)) &&
+        (!term ||
+          `${t.title} ${t.region}`.toLowerCase().includes(term)),
+    );
+  }, [tours, query, view]);
+
+  const set = (name, value) => setForm((f) => ({ ...f, [name]: value }));
+
+  const startEdit = (tour) => {
+    setError("");
+    setEditing(tour);
+    setForm(
+      tour
+        ? {
+            title: tour.title,
+            region: tour.region,
+            durationDays: tour.durationDays,
+            basePrice: tour.basePrice,
+            excerpt: tour.excerpt || "",
+            description: tour.description || "",
+            imageKey: tour.imageKey,
+            featured: tour.featured,
+            published: tour.published,
+          }
+        : empty,
+    );
+    setOpen(true);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -64,124 +122,212 @@ const DashboardTours = () => {
     }
   };
 
-  const remove = async (id) => {
-    if (!confirm("Delete this tour?")) return;
+  const remove = async () => {
+    setBusy(true);
+    setRemoveError("");
     try {
-      await api(`/tours/${id}`, { method: "DELETE" });
+      await api(`/tours/${removing._id}`, { method: "DELETE" });
+      setRemoving(null);
       load();
-    } catch (error) {
-      setError(error.message);
+    } catch (err) {
+      setRemoveError(err.message);
+    } finally {
+      setBusy(false);
     }
   };
 
+  const published = tours.filter((t) => t.published).length;
+  const avgPrice = tours.length
+    ? tours.reduce((sum, t) => sum + Number(t.basePrice || 0), 0) / tours.length
+    : 0;
+
   return (
-    <div className="portal-page space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="eyebrow">YOUR JOURNEY COLLECTION</p>
-          <h2 className="font-volkhov text-3xl">Journeys</h2>
-          <p className="mt-1 text-sm text-[#75806f]">
-            Curate the journeys travellers can discover and request.
-          </p>
+    <div className="portal-page">
+      <PageHeader
+        eyebrow="YOUR JOURNEY COLLECTION"
+        title="Journeys worth"
+        accent="the long way round."
+        description="Curate the journeys travellers can discover and request. Drafts stay hidden from the website until you publish them."
+        actions={
+          <button
+            type="button"
+            className="portal-btn portal-btn-primary"
+            onClick={() => startEdit(null)}
+          >
+            <Icon name="plus" size={15} /> Add journey
+          </button>
+        }
+      />
+      <SummaryStrip
+        items={[
+          { label: "Journeys", value: tours.length, icon: "pin" },
+          {
+            label: "Live on the website",
+            value: published,
+            icon: "globe",
+            tone: "good",
+          },
+          {
+            label: "Drafts",
+            value: tours.length - published,
+            icon: "edit",
+            tone: "muted",
+          },
+          {
+            label: "Average price per guest",
+            value: formatMoney(Math.round(avgPrice)),
+            icon: "dollar",
+          },
+        ]}
+      />
+      {error && !open && (
+        <p className="error-message" role="alert">
+          {error}
+        </p>
+      )}
+      <Toolbar>
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder="Search journeys or regions"
+        />
+        <Segmented
+          label="Filter journeys"
+          value={view}
+          onChange={setView}
+          options={[
+            { value: "all", label: "All", count: tours.length },
+            { value: "published", label: "Published", count: published },
+            {
+              value: "draft",
+              label: "Drafts",
+              count: tours.length - published,
+            },
+            {
+              value: "featured",
+              label: "Featured",
+              count: tours.filter((t) => t.featured).length,
+            },
+          ]}
+        />
+      </Toolbar>
+      {loading ? (
+        <LoadingState>Loading journeys…</LoadingState>
+      ) : !visible.length ? (
+        <div className="portal-card">
+          <EmptyState
+            icon="pin"
+            title={tours.length ? "No journeys match" : "No journeys yet"}
+            action={
+              !tours.length && (
+                <button
+                  type="button"
+                  className="portal-btn portal-btn-primary"
+                  onClick={() => startEdit(null)}
+                >
+                  <Icon name="plus" size={15} /> Add your first journey
+                </button>
+              )
+            }
+          >
+            {tours.length
+              ? "Try a different filter or search term."
+              : "Create a journey, then add departure dates so travellers can request it."}
+          </EmptyState>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setEditing(null);
-            setForm(empty);
-            setOpen(true);
-          }}
-          className="w-fit rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white"
-        >
-          Add journey
-        </button>
-      </div>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {tours.map((t) => {
-          const next = t.nextDeparture;
-          const fill = next
-            ? Math.round((next.bookedCount / next.seats) * 100)
-            : 0;
-          return (
-            <Card
-              key={t._id}
-              title={t.title}
-              subtitle={`${t.region} · ${t.durationDays} days`}
-              action={
-                <span
-                  className={`portal-card-tag${t.published ? "" : " is-draft"}`}
-                >
-                  {t.published ? "Published" : "Draft"}
-                </span>
-              }
-            >
-              <div className="space-y-4">
-                <img
-                  className="portal-feature-image"
-                  src={resolveTourImage(t.imageKey, t.slug)}
-                  alt={t.title}
-                />
-                {t.featured && (
-                  <span className="portal-card-tag">Featured journey</span>
-                )}
-                <p className="text-2xl font-medium">
-                  {formatMoney(t.basePrice)}
-                  <span className="text-sm text-[#75806f]"> / guest</span>
-                </p>
-                <p className="text-sm text-[#75806f]">
-                  Next departure fill{" "}
-                  {next
-                    ? `${next.bookedCount}/${next.seats} (${fill}%)`
-                    : "n/a"}
-                </p>
-                <div
-                  className="portal-capacity-track"
-                  aria-label={`${fill}% of next departure filled`}
-                >
-                  <span
-                    style={{ width: `${Math.min(100, Math.max(0, fill))}%` }}
-                  />
+      ) : (
+        <div className="portal-tour-grid">
+          {visible.map((t) => {
+            const next = t.nextDeparture;
+            const fill = next
+              ? Math.round((next.bookedCount / Math.max(next.seats, 1)) * 100)
+              : 0;
+            return (
+              <article key={t._id} className="portal-tour-card">
+                <div className="portal-tour-media">
+                  <img src={resolveTourImage(t.imageKey, t.slug)} alt="" />
+                  <div className="portal-tour-tags">
+                    <span
+                      className={`portal-status portal-status-${t.published ? "published" : "draft"}`}
+                    >
+                      <span className="portal-status-dot" aria-hidden="true" />
+                      {t.published ? "Published" : "Draft"}
+                    </span>
+                    {t.featured && (
+                      <span className="portal-chip is-brand">
+                        <Icon name="star" size={11} /> Featured
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    className="flex-1 rounded-xl border border-black/10 py-2 text-sm"
-                    onClick={() => {
-                      setEditing(t);
-                      setForm({
-                        title: t.title,
-                        region: t.region,
-                        durationDays: t.durationDays,
-                        basePrice: t.basePrice,
-                        excerpt: t.excerpt,
-                        description: t.description,
-                        imageKey: t.imageKey,
-                        featured: t.featured,
-                        published: t.published,
-                      });
-                      setOpen(true);
-                    }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="flex-1 rounded-xl border border-black/10 py-2 text-sm"
-                    onClick={() => remove(t._id)}
-                  >
-                    Delete
-                  </button>
+                <div className="portal-tour-body">
+                  <p className="portal-tour-meta">
+                    {t.region} · {t.durationDays} days
+                  </p>
+                  <h3>{t.title}</h3>
+                  <p className="portal-tour-price">
+                    {formatMoney(t.basePrice)} <span>per guest</span>
+                  </p>
+                  <div className="portal-tour-next">
+                    <p>
+                      <span>
+                        {next
+                          ? `Next departure ${formatDate(next.startDate)}`
+                          : "No upcoming departure"}
+                      </span>
+                      {next && (
+                        <strong>
+                          {next.bookedCount}/{next.seats}
+                        </strong>
+                      )}
+                    </p>
+                    <span
+                      className={`portal-capacity-track${fill >= 100 ? " is-full" : ""}`}
+                    >
+                      <span style={{ width: `${Math.min(100, fill)}%` }} />
+                    </span>
+                  </div>
+                  <div className="portal-tour-actions">
+                    <button
+                      type="button"
+                      className="portal-btn portal-btn-secondary is-small"
+                      onClick={() => startEdit(t)}
+                    >
+                      <Icon name="edit" size={14} /> Edit
+                    </button>
+                    {t.published && (
+                      <Link
+                        className="portal-btn portal-btn-ghost is-small"
+                        to={`/packages/${t.slug}`}
+                        target="_blank"
+                      >
+                        View <Icon name="northeast" size={13} />
+                      </Link>
+                    )}
+                    <button
+                      type="button"
+                      className="portal-icon-btn is-danger"
+                      aria-label={`Delete ${t.title}`}
+                      onClick={() => {
+                        setRemoveError("");
+                        setRemoving(t);
+                      }}
+                    >
+                      <Icon name="trash" size={15} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
       {open ? (
         <Modal
           title={editing ? "Edit journey" : "Add journey"}
+          description="Prices are per traveller. Totals are always calculated by the server."
           onClose={() => setOpen(false)}
+          size="lg"
         >
           <form className="form-stack" onSubmit={submit}>
             {error && (
@@ -189,149 +335,169 @@ const DashboardTours = () => {
                 {error}
               </p>
             )}
-            {["title", "region"].map((name) => (
-              <label className="field" key={name}>
-                {
-                  {
-                    title: "Journey name",
-                    region: "Region",
-                  }[name]
-                }
-                <input
-                  required={name === "title"}
-                  placeholder={name}
-                  value={form[name]}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, [name]: e.target.value }))
-                  }
-                  className="rounded-xl border border-black/10 px-3 py-2 text-sm"
-                />
-              </label>
-            ))}
-            <label className="field">
-              Cover image
-              <select
-                value={
-                  coverChoices.some((choice) => choice.value === form.imageKey)
-                    ? form.imageKey
-                    : "custom"
-                }
-                onChange={(e) =>
-                  setForm((f) => ({
-                    ...f,
-                    imageKey: e.target.value === "custom" ? "" : e.target.value,
-                  }))
-                }
-              >
-                {coverChoices.map((choice) => (
-                  <option key={choice.value} value={choice.value}>
-                    {choice.label}
-                  </option>
-                ))}
-                <option value="custom">Custom image URL</option>
-              </select>
-            </label>
-            {!coverChoices.some((choice) => choice.value === form.imageKey) && (
+            <div className="form-row">
               <label className="field">
-                Image URL
+                Journey name
                 <input
-                  value={form.imageKey}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, imageKey: e.target.value }))
-                  }
-                  placeholder="https://example.com/journey.jpg"
+                  required
+                  minLength="3"
+                  value={form.title}
+                  onChange={(e) => set("title", e.target.value)}
+                  placeholder="e.g. Norwegian Fjords"
                 />
               </label>
-            )}
-            <img
-              className="portal-modal-preview"
-              src={resolveTourImage(form.imageKey)}
-              alt="Selected journey cover preview"
-            />
+              <label className="field">
+                Region
+                <input
+                  list="tour-regions"
+                  value={form.region}
+                  onChange={(e) => set("region", e.target.value)}
+                />
+                <datalist id="tour-regions">
+                  {regions.map((region) => (
+                    <option key={region} value={region} />
+                  ))}
+                </datalist>
+              </label>
+            </div>
             <div className="form-row">
               <label className="field">
                 Duration in days
                 <input
                   type="number"
-                  aria-label="Duration in days"
                   min="1"
                   max="365"
                   step="1"
                   value={form.durationDays}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, durationDays: e.target.value }))
-                  }
-                  className="rounded-xl border border-black/10 px-3 py-2 text-sm"
+                  onChange={(e) => set("durationDays", e.target.value)}
                 />
               </label>
               <label className="field">
-                Price per traveller in USD
+                Price per traveller (USD)
                 <input
                   type="number"
-                  aria-label="Price per traveller in USD"
                   min="1"
                   max="1000000"
                   step="0.01"
                   value={form.basePrice}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, basePrice: e.target.value }))
-                  }
-                  className="rounded-xl border border-black/10 px-3 py-2 text-sm"
+                  onChange={(e) => set("basePrice", e.target.value)}
                 />
               </label>
             </div>
+            <div className="portal-cover-picker">
+              <label className="field">
+                Cover image
+                <select
+                  value={
+                    coverChoices.some((c) => c.value === form.imageKey)
+                      ? form.imageKey
+                      : "custom"
+                  }
+                  onChange={(e) =>
+                    set(
+                      "imageKey",
+                      e.target.value === "custom" ? "" : e.target.value,
+                    )
+                  }
+                >
+                  {coverChoices.map((choice) => (
+                    <option key={choice.value} value={choice.value}>
+                      {choice.label}
+                    </option>
+                  ))}
+                  <option value="custom">Custom image URL</option>
+                </select>
+              </label>
+              <img
+                className="portal-modal-preview"
+                src={resolveTourImage(form.imageKey)}
+                alt="Selected journey cover preview"
+              />
+            </div>
+            {!coverChoices.some((c) => c.value === form.imageKey) && (
+              <label className="field">
+                Image URL
+                <input
+                  value={form.imageKey}
+                  onChange={(e) => set("imageKey", e.target.value)}
+                  placeholder="https://example.com/journey.jpg"
+                />
+              </label>
+            )}
             <label className="field">
               Short description
               <textarea
-                aria-label="Short description"
-                placeholder="Short description"
+                rows="2"
                 value={form.excerpt}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, excerpt: e.target.value }))
-                }
-                className="rounded-xl border border-black/10 px-3 py-2 text-sm"
+                onChange={(e) => set("excerpt", e.target.value)}
+                placeholder="One or two lines shown on journey cards"
               />
             </label>
             <label className="field">
               Full description
               <textarea
-                value={form.description}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, description: e.target.value }))
-                }
                 rows="4"
+                value={form.description}
+                onChange={(e) => set("description", e.target.value)}
               />
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.featured}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, featured: e.target.checked }))
-                }
-              />
-              Featured
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.published}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, published: e.target.checked }))
-                }
-              />
-              Published
-            </label>
-            <button
-              disabled={busy}
-              type="submit"
-              className="rounded-xl bg-primary py-2.5 text-sm text-white"
-            >
-              {busy ? "Saving…" : "Save journey"}
-            </button>
+            <div className="portal-check-row">
+              <label className="portal-check">
+                <input
+                  type="checkbox"
+                  checked={form.published}
+                  onChange={(e) => set("published", e.target.checked)}
+                />
+                <span>
+                  <strong>Published</strong>
+                  <small>Visible and bookable on the website</small>
+                </span>
+              </label>
+              <label className="portal-check">
+                <input
+                  type="checkbox"
+                  checked={form.featured}
+                  onChange={(e) => set("featured", e.target.checked)}
+                />
+                <span>
+                  <strong>Featured</strong>
+                  <small>Highlighted on the homepage</small>
+                </span>
+              </label>
+            </div>
+            <div className="portal-modal-actions">
+              <button
+                type="button"
+                className="portal-btn portal-btn-secondary"
+                onClick={() => setOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={busy}
+                type="submit"
+                className="portal-btn portal-btn-primary"
+              >
+                {busy ? "Saving…" : editing ? "Save changes" : "Add journey"}
+              </button>
+            </div>
           </form>
         </Modal>
       ) : null}
+      {removing && (
+        <ConfirmDialog
+          title="Delete this journey?"
+          confirmLabel="Delete journey"
+          busy={busy}
+          error={removeError}
+          onClose={() => setRemoving(null)}
+          onConfirm={remove}
+        >
+          <strong>{removing.title}</strong> and its departure dates will be
+          removed. Journeys with booking history cannot be deleted; unpublish
+          them instead.
+        </ConfirmDialog>
+      )}
     </div>
   );
 };

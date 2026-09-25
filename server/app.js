@@ -17,6 +17,7 @@ import suppliers from "./routes/suppliers.js";
 import enquiries from "./routes/enquiries.js";
 import analytics from "./routes/analytics.js";
 import settings from "./routes/settings.js";
+import team from "./routes/team.js";
 import newsletter from "./routes/newsletter.js";
 const app = express();
 app.disable("x-powered-by");
@@ -38,10 +39,13 @@ app.use(
 );
 app.use(cors({ origin: env.clientUrl, credentials: true }));
 app.use(express.json({ limit: "100kb" }));
+// Limits submissions and sign-in attempts; signed-in staff reading lists and
+// session checks (GET) are not counted.
 const limiter = (limit) =>
   rateLimit({
     windowMs: 15 * 60 * 1000,
     limit,
+    skip: (req) => req.method === "GET",
     standardHeaders: "draft-8",
     legacyHeaders: false,
     message: {
@@ -64,6 +68,7 @@ app.use("/api/enquiries", limiter(30), enquiries);
 app.use("/api/newsletter", limiter(30), newsletter);
 app.use("/api/analytics", analytics);
 app.use("/api/settings", settings);
+app.use("/api/team", limiter(100), team);
 app.use("/api", notFound);
 const dist = fileURLToPath(new URL("../dist/", import.meta.url));
 app.use(express.static(dist));
