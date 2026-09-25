@@ -1,70 +1,95 @@
-/* eslint-disable react-refresh/only-export-components -- hook exported with provider */
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api, getToken, setToken } from "../api/client";
 
-const STORAGE_KEY = "wanderlust_session_v1";
-
-const AuthContext = createContext(null);
-
-function readStoredUser() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (!data?.email) return null;
-    return { email: data.email, name: data.name || data.email.split("@")[0] };
-  } catch {
-    return null;
-  }
+import AuthContext from "./authState";
+async function linkGuestRequests() {
+  const keys = Object.keys(sessionStorage).filter((key) =>
+    key.startsWith("booking-access:"),
+  );
+  await Promise.allSettled(
+    keys.map((key) =>
+      api("/bookings/" + key.slice("booking-access:".length) + "/claim", {
+        method: "POST",
+      }),
+    ),
+  );
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => readStoredUser());
+  const [user, setUser] = useState(null);
+  const [ready, setReady] = useState(false);
 
-  const login = useCallback((email, password) => {
-    const trimmed = email.trim();
-    if (!trimmed || !password) {
-      return { ok: false, error: "Enter email and password." };
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      setReady(true);
+      return;
     }
-    if (password.length < 4) {
-      return { ok: false, error: "Password must be at least 4 characters." };
+    api("/auth/me")
+      .then((data) => setUser(data.user))
+      .catch(() => {
+        setToken(null);
+        setUser(null);
+      })
+      .finally(() => setReady(true));
+  }, []);
+
+  const login = useCallback(async (email, password) => {
+    try {
+      const data = await api("/auth/login", {
+        method: "POST",
+        body: { email, password },
+        auth: false,
+      });
+      setToken(data.token);
+      if (data.user.role === "customer") await linkGuestRequests();
+      setUser(data.user);
+      return { ok: true, user: data.user };
+    } catch (err) {
+      return { ok: false, error: err.message };
     }
-    const next = {
-      email: trimmed,
-      name: trimmed.split("@")[0] || "User",
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    setUser(next);
-    return { ok: true };
+  }, []);
+
+  const register = useCallback(async (payload) => {
+    try {
+      const data = await api("/auth/register", {
+        method: "POST",
+        body: payload,
+        auth: false,
+      });
+      setToken(data.token);
+      if (data.user.role === "customer") await linkGuestRequests();
+      setUser(data.user);
+      return { ok: true, user: data.user };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  }, []);
+
+  const updateProfile = useCallback(async (payload) => {
+    const data = await api("/auth/profile", { method: "PATCH", body: payload });
+    setUser(data.user);
+    return data.user;
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
+    setToken(null);
     setUser(null);
   }, []);
 
   const value = useMemo(
     () => ({
       user,
+      ready,
       login,
+      register,
       logout,
+      updateProfile,
       isAuthenticated: Boolean(user),
+      isStaff: user?.role === "staff" || user?.role === "admin",
     }),
-    [user, login, logout]
+    [user, ready, login, register, logout, updateProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
-  return ctx;
 }

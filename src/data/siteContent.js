@@ -172,14 +172,19 @@ export const tourInformation = {
   reviewCount: "2.4k reviews",
   priceMain: "1,280 $",
   priceUnit: "Per person (twin share)",
-  body:
-    "Meet your guide in Zürich, then wind through alpine valleys by panoramic train. You will stay in timber chalets, hike gentle ridgelines suited to mixed fitness, and enjoy one free afternoon for spa time or optional paragliding. Evening meals highlight raclette, roesti, and local wines from Valais producers we partner with year round.",
+  body: "Meet your guide in Zürich, then wind through alpine valleys by panoramic train. You will stay in timber chalets, hike gentle ridgelines suited to mixed fitness, and enjoy one free afternoon for spa time or optional paragliding. Evening meals highlight raclette, roesti, and local wines from Valais producers we partner with year round.",
   facts: [
-    { label: "Destination", value: "Zürich → Interlaken → Zermatt, Switzerland" },
+    {
+      label: "Destination",
+      value: "Zürich → Interlaken → Zermatt, Switzerland",
+    },
     { label: "Departure", value: "Zürich HB main concourse, 09:00" },
     { label: "Return", value: "Zürich Airport (ZRH), flexible day 8" },
     { label: "Difficulty", value: "Moderate (3–6 mi walks daily)" },
-    { label: "Included", value: "Rail pass, breakfasts, 4 dinners, guided hikes" },
+    {
+      label: "Included",
+      value: "Rail pass, breakfasts, 4 dinners, guided hikes",
+    },
     { label: "Not included", value: "International flights, travel insurance" },
   ],
   galleryTitle: "From our gallery",

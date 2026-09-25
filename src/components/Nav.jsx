@@ -1,85 +1,81 @@
-import Button from "./Button";
-import logo from "../assets/logo.svg";
-import Sidebar from "./Sidebar";
 import { useState } from "react";
-import { NavLink } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-
-const navMenus = [
-  { id: 1, label: "Home", url: "/" },
-  { id: 2, label: "About", url: "/about" },
-  { id: 3, label: "Packages", url: "/packages" },
-  { id: 4, label: "Tour Info", url: "/tour" },
-];
-
-const navLinkClass = ({ isActive }) =>
-  `relative cursor-pointer transition-opacity hover:opacity-90 ${
-    isActive ? "text-white" : "text-white/90"
-  }`;
-
-const Nav = () => {
-  const [isSidebar, setIsSidebar] = useState(false);
-  const { isAuthenticated } = useAuth();
-
+import { Link, NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "../context/useAuth";
+import Brand from "./Brand";
+import Icon from "./Icon";
+export default function Nav() {
+  const [open, setOpen] = useState(false);
+  const { user, isStaff, logout } = useAuth();
+  const { pathname } = useLocation();
+  const home = pathname === "/";
   return (
-    <>
-      <nav className="absolute left-0 top-0 z-[100] flex w-full max-w-[100vw] items-center justify-between px-4 pt-4 text-white sm:px-6 sm:pt-6 md:px-8 lg:px-10 xl:px-14 2xl:px-20">
-        <NavLink to="/" className="shrink-0" aria-label="Home">
-          <img src={logo} alt="" className="h-8 w-auto sm:h-10" />
-        </NavLink>
-        <ul className="hidden items-center justify-center gap-8 text-[15px] font-medium lg:flex xl:gap-[50px] xl:text-[17px]">
-          {navMenus.map((menu) => (
-            <li key={menu.id} className="relative">
-              <NavLink
-                to={menu.url}
-                end={menu.url === "/"}
-                className={({ isActive }) =>
-                  `${navLinkClass({ isActive })} inline-flex flex-col items-center gap-1`
-                }
-              >
-                {({ isActive }) => (
-                  <span className="inline-flex flex-col items-center gap-1">
-                    <span>{menu.label}</span>
-                    {isActive ? (
-                      <span className="h-0.5 w-[70%] shrink-0 rounded-full bg-primary" />
-                    ) : null}
-                  </span>
-                )}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-        <div className="hidden items-center gap-4 lg:flex">
-          <NavLink
-            {...(isAuthenticated
-              ? { to: "/dashboard" }
-              : {
-                  to: "/login",
-                  state: { from: "/dashboard" },
-                })}
-          >
-            <Button
-              name={isAuthenticated ? "Dashboard" : "Login"}
-              classname=""
-            />
+    <header className={`site-header ${home ? "header-home" : ""}`}>
+      <div className="nav-inner">
+        <Brand light={home} />
+        <nav className="desktop-nav" aria-label="Main navigation">
+          <NavLink to="/" end>
+            Home
           </NavLink>
+          <NavLink to="/packages">Destinations</NavLink>
+          <NavLink to="/about">Our story</NavLink>
+          <NavLink to="/contact">Get in touch</NavLink>
+        </nav>
+        <div className="nav-actions">
+          {user ? (
+            <>
+              <Link
+                className="nav-account"
+                to={isStaff ? "/dashboard" : "/account/bookings"}
+              >
+                {isStaff ? "Dashboard" : "My trips"}
+              </Link>
+              <button className="text-button desktop-only" onClick={logout}>
+                Sign out
+              </button>
+            </>
+          ) : (
+            <Link className="nav-account desktop-only" to="/login">
+              Sign in
+            </Link>
+          )}
+          <Link to="/contact" className="button button-light nav-cta">
+            Plan my trip <Icon name="northeast" size={17} />
+          </Link>
         </div>
         <button
-          type="button"
-          onClick={() => setIsSidebar((prev) => !prev)}
-          className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/30 bg-white/10 lg:hidden"
-          aria-label="Open menu"
+          className="mobile-toggle"
+          onClick={() => setOpen(!open)}
+          aria-label={open ? "Close navigation" : "Open navigation"}
+          aria-expanded={open}
+          aria-controls="mobile-nav"
         >
-          <span className="flex flex-col gap-1.5">
-            <span className="block h-0.5 w-5 bg-white" />
-            <span className="block h-0.5 w-5 bg-white" />
-            <span className="block h-0.5 w-5 bg-white" />
-          </span>
+          <Icon name={open ? "close" : "menu"} />
         </button>
-      </nav>
-      {isSidebar && <Sidebar setSidebar={setIsSidebar} />}
-    </>
+      </div>
+      {open && (
+        <nav
+          id="mobile-nav"
+          className="mobile-nav"
+          aria-label="Mobile navigation"
+        >
+          {[
+            ["/", "Home"],
+            ["/packages", "Destinations"],
+            ["/about", "Our story"],
+            ["/contact", "Plan my trip"],
+            [
+              user ? "/account/bookings" : "/login",
+              user ? "My trips" : "Sign in",
+            ],
+            ...(isStaff ? [["/dashboard", "Dashboard"]] : []),
+          ].map(([to, label]) => (
+            <Link key={to} to={to} onClick={() => setOpen(false)}>
+              {label}
+              <Icon name="arrow" size={16} />
+            </Link>
+          ))}
+        </nav>
+      )}
+    </header>
   );
-};
-
-export default Nav;
+}

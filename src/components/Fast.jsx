@@ -12,6 +12,30 @@ import img5 from "../assets/fast/img5.jpg";
 import bg from "../assets/packages/bg.svg";
 import Section from "./Section";
 
+const planningSteps = [
+  {
+    icon: img1,
+    title: "Choose Destination",
+    body: "Browse curated departures by pace, season, and travel style, then shortlist the route that fits your group.",
+    color: "bg-primary",
+    iconClass: "h-6 w-8 sm:h-[28px] sm:w-[36px]",
+  },
+  {
+    icon: img2,
+    title: "Check Availability",
+    body: "Confirm live room blocks, rail seats, and optional private transfers before you commit to the date.",
+    color: "bg-[#F0BB1F]",
+    iconClass: "h-6 w-6 sm:h-[28px] sm:w-[28px]",
+  },
+  {
+    icon: img3,
+    title: "Let's Go",
+    body: "Receive your digital itinerary, host contacts, and departure notes with every detail already handled.",
+    color: "bg-[#006380]",
+    iconClass: "h-6 w-6 sm:h-[28px] sm:w-[28px]",
+  },
+];
+
 const Fast = () => {
   return (
     <Section classname="grid w-full max-w-[100vw] grid-cols-1 gap-12 overflow-x-clip 2xl:grid-cols-2 2xl:gap-0">
@@ -25,65 +49,32 @@ const Fast = () => {
           </h2>
         </div>
         <div className="flex flex-col gap-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-12 min-w-[48px] shrink-0 items-center justify-center rounded-xl bg-primary sm:min-w-[54px]">
-              <img
-                src={img1}
-                alt=""
-                className="h-6 w-8 object-contain sm:h-[28px] sm:w-[36px]"
-              />
+          {planningSteps.map((step) => (
+            <div key={step.title} className="flex items-start gap-3">
+              <div
+                className={`flex h-12 min-w-[48px] shrink-0 items-center justify-center rounded-xl ${step.color} sm:min-w-[54px]`}
+              >
+                <img
+                  src={step.icon}
+                  alt=""
+                  className={`${step.iconClass} object-contain`}
+                />
+              </div>
+              <div className="min-w-0 flex flex-col">
+                <h6 className="font-poppins text-[16px] font-bold text-[#5E6282]">
+                  {step.title}
+                </h6>
+                <p className="font-poppins text-[15px] leading-relaxed text-[#5E6282] sm:text-[16px]">
+                  {step.body}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0 flex flex-col">
-              <h6 className="font-poppins text-[16px] font-bold text-[#5E6282]">
-                Choose Destination
-              </h6>
-              <p className="font-poppins text-[15px] text-[#5E6282] sm:text-[16px]">
-                Lorem ipsum dolor sit amet consectetur, adipisicing elit.
-                Voluptatum eos dolores praesentium eaque alias?
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="flex h-12 min-w-[48px] shrink-0 items-center justify-center rounded-xl bg-[#F0BB1F] sm:min-w-[54px]">
-              <img
-                src={img2}
-                alt=""
-                className="h-6 w-6 object-contain sm:h-[28px] sm:w-[28px]"
-              />
-            </div>
-            <div className="min-w-0 flex flex-col">
-              <h6 className="font-poppins text-[16px] font-bold text-[#5E6282]">
-                Check Availability
-              </h6>
-              <p className="font-poppins text-[15px] text-[#5E6282] sm:text-[16px]">
-                Lorem ipsum dolor sit amet consectetur, adipisicing elit.
-                Voluptatum eos dolores praesentium eaque alias?
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="flex h-12 min-w-[48px] shrink-0 items-center justify-center rounded-xl bg-[#006380] sm:min-w-[54px]">
-              <img
-                src={img3}
-                alt=""
-                className="h-6 w-6 object-contain sm:h-[28px] sm:w-[28px]"
-              />
-            </div>
-            <div className="min-w-0 flex flex-col">
-              <h6 className="font-poppins text-[16px] font-bold text-[#5E6282]">
-                Let’s Go
-              </h6>
-              <p className="font-poppins text-[15px] text-[#5E6282] sm:text-[16px]">
-                Lorem ipsum dolor sit amet consectetur, adipisicing elit.
-                Voluptatum eos dolores praesentium eaque alias?
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
       <div className="relative col-span-1 flex min-h-[640px] w-full min-w-0 items-center justify-center overflow-x-clip overflow-y-visible py-8 sm:min-h-[680px] sm:py-10 md:min-h-[720px] lg:min-h-[740px] 2xl:min-h-[720px] 2xl:py-12">
-        <div className="relative mx-auto w-full max-w-[400px] px-3 sm:max-w-[420px] sm:px-4">
-          <div className="mx-auto flex h-[380px] w-full max-w-[320px] flex-col justify-between gap-3 rounded-[26px] bg-white px-4 py-4 shadow-2xl sm:h-[400px] sm:px-5 sm:py-4">
+        <div className="relative z-10 mx-auto w-full max-w-[400px] px-3 sm:max-w-[420px] sm:px-4">
+          <div className="relative z-10 mx-auto flex h-[380px] w-full max-w-[320px] flex-col justify-between gap-3 rounded-[26px] bg-white px-4 py-4 shadow-2xl sm:h-[400px] sm:px-5 sm:py-4">
             <img
               src={img5}
               alt=""
@@ -132,9 +123,9 @@ const Fast = () => {
           <img
             src={plane}
             alt=""
-            className="pointer-events-none absolute -right-[8%] -top-4 -z-20 w-[min(340px,92vw)] max-w-none opacity-95 sm:-right-[12%] sm:-top-8 sm:w-[min(440px,85vw)] md:-right-[18%] md:-top-12 md:w-[min(540px,80vw)] lg:-right-[22%] lg:w-[min(620px,75vw)] xl:-right-[28%] xl:-top-16 xl:w-[min(700px,70vw)]"
+            className="pointer-events-none absolute -right-[10%] -top-6 z-0 w-[min(420px,95vw)] max-w-none opacity-95 sm:-right-[14%] sm:-top-10 sm:w-[min(540px,90vw)] md:-right-[20%] md:-top-14 md:w-[min(660px,85vw)] lg:-right-[24%] lg:w-[min(760px,80vw)] xl:-right-[30%] xl:-top-20 xl:w-[min(860px,75vw)]"
           />
-          <div className="relative mx-auto mt-6 w-full max-w-[300px] rounded-[18px] bg-white px-4 py-4 shadow-xl sm:absolute sm:bottom-6 sm:right-0 sm:mt-0 md:-right-8 lg:-right-12 xl:-right-24 2xl:-right-36">
+          <div className="relative z-10 mx-auto mt-6 w-full max-w-[300px] rounded-[18px] bg-white px-4 py-4 shadow-xl sm:absolute sm:bottom-6 sm:right-0 sm:mt-0 md:-right-8 lg:-right-12 xl:-right-24 2xl:-right-36">
             <div className="flex w-full items-center justify-start gap-3">
               <img
                 src={img4}

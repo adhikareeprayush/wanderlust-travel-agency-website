@@ -1,107 +1,173 @@
-import { useMemo, useState } from "react";
-import { recentBookings } from "../../data/mockDashboard";
+import { useCallback, useEffect, useState } from "react";
+import { api } from "../../api/client";
 import { Card, StatusBadge } from "../../components/dashboard/DashboardUi";
-
-const formatMoney = (n) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(n);
-
-const statuses = ["all", "confirmed", "pending", "waitlist", "cancelled"];
-
-const DashboardBookings = () => {
+import { formatDate, formatMoney } from "../../lib/tourImages";
+const statuses = ["all", "pending", "confirmed", "waitlist", "cancelled"];
+export default function DashboardBookings() {
   const [q, setQ] = useState("");
+  const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
-
-  const rows = useMemo(() => {
-    return recentBookings.filter((b) => {
-      const okStatus = status === "all" || b.status === status;
-      const hay = `${b.id} ${b.guest} ${b.tour}`.toLowerCase();
-      const okQ = !q || hay.includes(q.toLowerCase());
-      return okStatus && okQ;
-    });
-  }, [q, status]);
-
+  const [rows, setRows] = useState([]);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState("");
+  const [loading, setLoading] = useState(true);
+  const load = useCallback(async () => {
+    setError("");
+    try {
+      const params = new URLSearchParams({ status, q: search });
+      const data = await api(`/bookings?${params}`);
+      setRows(data.bookings);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [status, search]);
+  useEffect(() => {
+    load();
+  }, [load]);
+  async function changeStatus(id, next) {
+    setBusy(id);
+    setError("");
+    try {
+      await api(`/bookings/${id}/status`, {
+        method: "PATCH",
+        body: { status: next },
+      });
+      await load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy("");
+    }
+  }
   return (
-    <div className="space-y-6">
+    <div className="portal-page space-y-6">
       <div>
-        <h2 className="font-volkhov text-3xl font-bold text-[#181433]">
-          Bookings
+        <p className="eyebrow">TRAVELLER REQUESTS</p>
+        <h2 className="font-volkhov text-4xl mt-2">
+          Every journey starts here.
         </h2>
-        <p className="mt-1 text-sm text-[#757095]">
-          Search and filter mock reservations for demos.
+        <p className="status-note mt-3">
+          Review requests and confirm places. Confirmation reserves seats;
+          changing a confirmed booking to another status releases them.
         </p>
       </div>
-
-      <Card title="Pipeline" subtitle="All values are static mock data">
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <input
-            type="search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search guest, tour, or reference…"
-            className="w-full max-w-md rounded-xl border border-black/10 bg-[#f9fafc] px-4 py-2.5 text-sm outline-none ring-primary/30 placeholder:text-[#757095] focus:ring-2"
-          />
-          <div className="flex flex-wrap gap-2">
+      {error && (
+        <p className="error-message" role="alert">
+          {error}
+        </p>
+      )}
+      <Card
+        title="Booking requests"
+        subtitle={`${rows.length} requests in this view`}
+      >
+        <div className="flex flex-wrap gap-4 justify-between mb-6">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setSearch(q);
+            }}
+            className="flex gap-2"
+          >
+            <input
+              aria-label="Search bookings"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Name, email, or reference"
+              className="border border-black/10 rounded-lg px-3 py-2 text-xs"
+            />
+            <button className="text-button">Search</button>
+          </form>
+          <div className="filter-pills" style={{ marginBottom: 0 }}>
             {statuses.map((s) => (
               <button
                 key={s}
-                type="button"
+                className={status === s ? "active" : ""}
+                aria-pressed={status === s}
                 onClick={() => setStatus(s)}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize ring-1 ring-inset transition-colors ${
-                  status === s
-                    ? "bg-primary text-white ring-primary"
-                    : "bg-white text-[#4a4a68] ring-black/10 hover:bg-black/[0.03]"
-                }`}
               >
-                {s}
+                {s.charAt(0).toUpperCase() + s.slice(1)}
               </button>
             ))}
           </div>
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-black/10 text-[#757095]">
-                <th className="pb-3 pr-4 font-medium">Reference</th>
-                <th className="pb-3 pr-4 font-medium">Guest</th>
-                <th className="pb-3 pr-4 font-medium">Tour</th>
-                <th className="pb-3 pr-4 font-medium">Start</th>
-                <th className="pb-3 pr-4 font-medium">Party</th>
-                <th className="pb-3 pr-4 font-medium">Total</th>
-                <th className="pb-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((b) => (
-                <tr
-                  key={b.id}
-                  className="border-b border-black/[0.06] last:border-0"
-                >
-                  <td className="py-3 pr-4 font-mono text-xs font-semibold text-primary">
-                    {b.id}
-                  </td>
-                  <td className="py-3 pr-4 font-medium">{b.guest}</td>
-                  <td className="py-3 pr-4 text-[#4a4a68]">{b.tour}</td>
-                  <td className="py-3 pr-4 text-[#4a4a68]">{b.startDate}</td>
-                  <td className="py-3 pr-4">{b.party}</td>
-                  <td className="py-3 pr-4 font-semibold">
-                    {formatMoney(b.total)}
-                  </td>
-                  <td className="py-3">
-                    <StatusBadge status={b.status} />
-                  </td>
+        {loading ? (
+          <p role="status">Loading requests…</p>
+        ) : !rows.length ? (
+          <p className="status-note py-8">No requests match your filters.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left">
+              <thead>
+                <tr>
+                  {[
+                    "Reference / traveller",
+                    "Journey",
+                    "Departure",
+                    "Travellers",
+                    "Trip total",
+                    "Status",
+                    "Update",
+                  ].map((h) => (
+                    <th key={h} className="pr-5 border-b border-black/10">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {rows.map((b) => (
+                  <tr key={b._id} className="border-b border-black/5">
+                    <td className="pr-5">
+                      <span className="font-mono text-[10px] text-primary">
+                        {b.reference}
+                      </span>
+                      <p className="font-medium mt-1">{b.guestName}</p>
+                      <p className="status-note">{b.email}</p>
+                      {b.phone && <p className="status-note">{b.phone}</p>}
+                      {b.notes && (
+                        <details className="mt-2">
+                          <summary className="cursor-pointer text-xs text-primary">
+                            Guest notes
+                          </summary>
+                          <p className="status-note max-w-xs whitespace-pre-wrap mt-2">
+                            {b.notes}
+                          </p>
+                        </details>
+                      )}
+                    </td>
+                    <td className="pr-5">{b.tour?.title}</td>
+                    <td className="pr-5 whitespace-nowrap">
+                      {formatDate(b.departure?.startDate)}
+                    </td>
+                    <td className="pr-5">{b.partySize}</td>
+                    <td className="pr-5">{formatMoney(b.total)}</td>
+                    <td className="pr-5">
+                      <StatusBadge status={b.status} />
+                    </td>
+                    <td>
+                      <select
+                        aria-label={`Update ${b.reference}`}
+                        disabled={busy === b._id}
+                        value={b.status}
+                        onChange={(e) => changeStatus(b._id, e.target.value)}
+                        className="border border-black/10 p-2 rounded-lg text-xs"
+                      >
+                        {statuses.slice(1).map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   );
-};
-
-export default DashboardBookings;
+}

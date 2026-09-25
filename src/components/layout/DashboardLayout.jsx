@@ -1,149 +1,165 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useState } from "react";
-import logo from "../../assets/logo-black.svg";
-import { useAuth } from "../../context/AuthContext";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import Brand from "../Brand";
+import Icon from "../Icon";
+import { useAuth } from "../../context/useAuth";
+import DashboardProfileMenu from "../dashboard/DashboardProfileMenu";
 
-const navItems = [
-  { to: "/dashboard", label: "Overview", end: true },
-  { to: "/dashboard/bookings", label: "Bookings" },
-  { to: "/dashboard/tours", label: "Tours" },
-  { to: "/dashboard/analytics", label: "Analytics" },
+const primary = [
+  { to: "/dashboard", label: "Overview", icon: "globe", end: true },
+  { to: "/dashboard/bookings", label: "Bookings", icon: "calendar" },
+  { to: "/dashboard/tours", label: "Journeys", icon: "pin" },
+  { to: "/dashboard/departures", label: "Departures", icon: "clock" },
+  { to: "/dashboard/enquiries", label: "Enquiries", icon: "mail" },
 ];
+const secondary = [
+  { to: "/dashboard/guests", label: "Travellers", icon: "users" },
+  { to: "/dashboard/guides", label: "Guides", icon: "shield" },
+  { to: "/dashboard/suppliers", label: "Suppliers", icon: "leaf" },
+  { to: "/dashboard/analytics", label: "Analytics", icon: "chart" },
+  { to: "/dashboard/settings", label: "Settings", icon: "settings" },
+];
+const allItems = [...primary, ...secondary];
 
-const linkClass = ({ isActive }) =>
-  `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-    isActive
-      ? "bg-primary/10 text-primary"
-      : "text-[#4a4a68] hover:bg-black/5 hover:text-[#181433]"
-  }`;
+function SidebarGroup({ title, items, onNavigate }) {
+  return (
+    <div className="portal-nav-group">
+      <p className="portal-nav-caption">{title}</p>
+      <nav aria-label={title}>
+        {items.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              `portal-nav-link${isActive ? " active" : ""}`
+            }
+          >
+            <Icon name={item.icon} size={18} />
+            <span>{item.label}</span>
+            {item.label === "Enquiries" && (
+              <span className="portal-nav-indicator" aria-hidden="true" />
+            )}
+          </NavLink>
+        ))}
+      </nav>
+    </div>
+  );
+}
 
-const DashboardLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate("/", { replace: true });
-  };
-
+export default function DashboardLayout() {
+  const { pathname } = useLocation();
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const current =
+    allItems.find((item) => item.to === pathname)?.label || "Overview";
   const initials =
     user?.name
       ?.split(/\s+/)
-      .map((p) => p[0])
+      .map((part) => part[0])
       .join("")
       .slice(0, 2)
-      .toUpperCase() ||
-    user?.email?.slice(0, 2).toUpperCase() ||
-    "?";
-
+      .toUpperCase() || "WT";
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+  useEffect(() => {
+    const close = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", close);
+    return () => document.removeEventListener("keydown", close);
+  }, []);
   return (
-    <div className="min-h-screen w-full bg-[#f4f5fb] font-poppins text-[#181433]">
-      <div className="sticky top-0 z-30 flex w-full items-center justify-between border-b border-black/5 bg-white/90 px-4 py-3 backdrop-blur-md lg:hidden">
-        <img src={logo} alt="Wanderlust" className="h-8 w-auto" />
+    <div className="portal-shell admin-shell">
+      {open && (
         <button
-          type="button"
-          className="rounded-lg border border-black/10 px-3 py-2 text-sm font-medium"
-          onClick={() => setSidebarOpen((o) => !o)}
-          aria-expanded={sidebarOpen}
-        >
-          Menu
-        </button>
-      </div>
-
-      <div className="flex w-full min-w-0">
-        <aside
-          className={`fixed inset-y-0 left-0 z-40 w-64 shrink-0 transform border-r border-black/5 bg-white transition-transform lg:static lg:translate-x-0 ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          <div className="flex h-full min-h-screen w-full flex-col gap-6 px-4 py-8">
-            <div className="hidden px-2 lg:block">
-              <img src={logo} alt="Wanderlust" className="h-9 w-auto" />
-              <p className="mt-2 text-xs font-medium text-[#757095]">
-                Operations console
-              </p>
-            </div>
-            <nav className="flex flex-1 flex-col gap-1">
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={linkClass}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <span className="h-2 w-2 rounded-full bg-current opacity-60" />
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
-            <div className="flex flex-col gap-2">
-              <NavLink
-                to="/"
-                className="rounded-xl border border-black/10 px-3 py-2.5 text-center text-sm font-semibold text-[#181433] hover:bg-black/[0.03]"
-                onClick={() => setSidebarOpen(false)}
-              >
-                ← Back to site
-              </NavLink>
-              <button
-                type="button"
-                onClick={() => {
-                  setSidebarOpen(false);
-                  handleLogout();
-                }}
-                className="rounded-xl bg-primary/10 px-3 py-2.5 text-center text-sm font-semibold text-primary hover:bg-primary/15"
-              >
-                Log out
-              </button>
+          className="portal-scrim"
+          onClick={() => setOpen(false)}
+          aria-label="Close sidebar"
+        />
+      )}
+      <aside
+        className={`portal-sidebar${open ? " is-open" : ""}`}
+        id="portal-sidebar"
+      >
+        <div className="portal-sidebar-top">
+          <Brand light />
+          <button
+            className="portal-close"
+            onClick={() => setOpen(false)}
+            aria-label="Close menu"
+          >
+            <Icon name="close" />
+          </button>
+        </div>
+        <div className="portal-sidebar-scroll">
+          <SidebarGroup
+            title="WORKSPACE"
+            items={primary}
+            onNavigate={() => setOpen(false)}
+          />
+          <SidebarGroup
+            title="OPERATIONS"
+            items={secondary}
+            onNavigate={() => setOpen(false)}
+          />
+        </div>
+        <div className="portal-sidebar-bottom">
+          <div className="portal-assist">
+            <span className="portal-assist-icon">
+              <Icon name="star" size={17} />
+            </span>
+            <strong>Every detail matters.</strong>
+            <p>Keep your travellers' journeys moving beautifully.</p>
+          </div>
+          <NavLink
+            to="/"
+            className="portal-view-site"
+            onClick={() => setOpen(false)}
+          >
+            View website <Icon name="northeast" size={16} />
+          </NavLink>
+        </div>
+      </aside>
+      <div className="portal-content">
+        <header className="portal-header">
+          <div className="portal-header-left">
+            <button
+              className="portal-menu-button"
+              aria-label="Open menu"
+              aria-expanded={open}
+              aria-controls="portal-sidebar"
+              onClick={() => setOpen(true)}
+            >
+              <Icon name="menu" size={22} />
+            </button>
+            <div>
+              <span className="portal-breadcrumb">
+                WANDERLUST <span>/</span> WORKSPACE
+              </span>
+              <h1>{current}</h1>
             </div>
           </div>
-        </aside>
-
-        {sidebarOpen && (
-          <button
-            type="button"
-            className="fixed inset-0 z-30 bg-black/40 lg:hidden"
-            aria-label="Close menu"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        <div className="flex min-h-screen min-w-0 w-full flex-1 flex-col">
-          <header className="sticky top-0 z-20 hidden w-full border-b border-black/5 bg-white/80 px-6 py-4 backdrop-blur-md lg:flex lg:items-center lg:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                Dashboard
-              </p>
-              <h1 className="font-volkhov text-2xl font-bold text-[#181433]">
-                Wanderlust Travel
-              </h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="rounded-lg border border-black/10 px-3 py-2 text-sm font-semibold text-[#181433] hover:bg-black/[0.04]"
-              >
-                Log out
-              </button>
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-semibold">{user?.name}</p>
-                <p className="text-xs text-[#757095]">{user?.email}</p>
-              </div>
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
-                {initials}
-              </div>
-            </div>
-          </header>
-
-          <main className="w-full min-w-0 flex-1 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
-            <Outlet />
-          </main>
-        </div>
+          <div className="portal-header-actions">
+            <span className="portal-header-date">
+              {new Date().toLocaleDateString("en-GB", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              })}
+            </span>
+            <DashboardProfileMenu initials={initials} user={user} />
+          </div>
+        </header>
+        <main className="portal-main">
+          <Outlet />
+        </main>
       </div>
     </div>
   );
-};
-
-export default DashboardLayout;
+}

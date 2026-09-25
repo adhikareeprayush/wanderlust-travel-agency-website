@@ -178,6 +178,179 @@ export const topDestinations = [
   { name: "Scotland", share: 11, bookings: 188 },
 ];
 
+export const leadSources = [
+  { name: "Website enquiry", value: 42, color: "#df6951" },
+  { name: "Agent referral", value: 24, color: "#F0BB1F" },
+  { name: "Repeat guest", value: 19, color: "#006380" },
+  { name: "Social campaign", value: 15, color: "#59B1E6" },
+];
+
+export const departureCalendar = [
+  {
+    id: "dep-1",
+    date: "Jul 12",
+    tour: "Scottish Highlands",
+    seats: "12/18",
+    status: "Rooming list due",
+  },
+  {
+    id: "dep-2",
+    date: "Aug 02",
+    tour: "Kyoto Heritage",
+    seats: "16/18",
+    status: "Visa notes pending",
+  },
+  {
+    id: "dep-3",
+    date: "Sep 09",
+    tour: "Lisbon & Porto",
+    seats: "9/20",
+    status: "Promo running",
+  },
+  {
+    id: "dep-4",
+    date: "Nov 04",
+    tour: "Patagonia Trek",
+    seats: "10/12",
+    status: "Supplier hold",
+  },
+];
+
+export const guestProfiles = [
+  {
+    id: "g-101",
+    name: "Harper Singh",
+    segment: "Honeymoon",
+    nextTrip: "Swiss Alps & Lakes",
+    value: "$2,560",
+    note: "Vegetarian meals",
+  },
+  {
+    id: "g-102",
+    name: "Priya Natarajan",
+    segment: "Family",
+    nextTrip: "Kyoto Heritage",
+    value: "$9,800",
+    note: "Rail pass upgrade",
+  },
+  {
+    id: "g-103",
+    name: "Owen Gallagher",
+    segment: "Adventure",
+    nextTrip: "Patagonia Trek",
+    value: "$5,980",
+    note: "Waitlist follow-up",
+  },
+  {
+    id: "g-104",
+    name: "Yuki Tanaka",
+    segment: "Repeat guest",
+    nextTrip: "Bali Slow Travel",
+    value: "$3,300",
+    note: "Cancellation credit",
+  },
+];
+
+export const supplierControls = [
+  {
+    id: "sup-1",
+    vendor: "Alpine Rail Partners",
+    type: "Transport",
+    status: "Contracted",
+    action: "Confirm June seat block",
+  },
+  {
+    id: "sup-2",
+    vendor: "Amalfi Boutique Stays",
+    type: "Hotels",
+    status: "Awaiting release",
+    action: "Extend room hold",
+  },
+  {
+    id: "sup-3",
+    vendor: "Patagonia Mountain Guides",
+    type: "Guides",
+    status: "Review due",
+    action: "Renew insurance docs",
+  },
+  {
+    id: "sup-4",
+    vendor: "Kyoto Cultural Hosts",
+    type: "Experiences",
+    status: "Active",
+    action: "Add tea ceremony slots",
+  },
+];
+
+export const guidesCatalog = [
+  {
+    id: "gd-1",
+    name: "Marco Bellini",
+    region: "Southern Europe",
+    experience: "9 years",
+    languages: ["English", "Italian"],
+    tours: ["Amalfi Coast Sunsets", "Lisbon & Porto"],
+    rating: 4.9,
+    status: "Available",
+    departures: 6,
+  },
+  {
+    id: "gd-2",
+    name: "Elena Müller",
+    region: "Alpine Europe",
+    experience: "12 years",
+    languages: ["English", "German", "French"],
+    tours: ["Swiss Alps & Lakes", "Scottish Highlands"],
+    rating: 4.8,
+    status: "On tour",
+    departures: 4,
+  },
+  {
+    id: "gd-3",
+    name: "Ren Tanaka",
+    region: "East Asia",
+    experience: "7 years",
+    languages: ["English", "Japanese"],
+    tours: ["Kyoto Heritage", "Bali Slow Travel"],
+    rating: 5.0,
+    status: "Available",
+    departures: 5,
+  },
+  {
+    id: "gd-4",
+    name: "Sofia Reyes",
+    region: "South America",
+    experience: "11 years",
+    languages: ["English", "Spanish"],
+    tours: ["Patagonia Trek"],
+    rating: 4.9,
+    status: "Leave soon",
+    departures: 2,
+  },
+  {
+    id: "gd-5",
+    name: "Amir Hassan",
+    region: "North Africa",
+    experience: "8 years",
+    languages: ["English", "Arabic", "French"],
+    tours: ["Moroccan Medina"],
+    rating: 4.7,
+    status: "Available",
+    departures: 3,
+  },
+  {
+    id: "gd-6",
+    name: "Claire Dubois",
+    region: "Western Europe",
+    experience: "10 years",
+    languages: ["English", "French"],
+    tours: ["Lisbon & Porto", "Swiss Alps & Lakes"],
+    rating: 4.8,
+    status: "On tour",
+    departures: 4,
+  },
+];
+
 export const activityFeed = [
   {
     id: 1,

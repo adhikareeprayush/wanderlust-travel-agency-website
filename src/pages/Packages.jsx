@@ -1,130 +1,117 @@
-import { useState } from "react";
-import ReusableHero from "../components/ReusableHero";
-import image from "../assets/hero2.jpg";
-import person from "../assets/information/person.svg";
-import Button from "../components/Button";
-import TourPlan from "../components/TourPlan";
-import Location from "../components/Location";
-import Gallery from "../components/Gallery";
-import PackagesContainer from "../components/PackagesContainer";
-
-const tabs = [
-  { id: 1, label: "Date" },
-  { id: 2, label: "Price Low To High" },
-  { id: 3, label: "Price High to Low" },
-  { id: 4, label: "Name (A-Z)" },
-];
-
-const Packages = () => {
-  const [activeMenu, setActiveMenu] = useState(1);
-  const handleTabChange = (tabNumber) => {
-    setActiveMenu(tabNumber);
-  };
+import { useSearchParams } from "react-router-dom";
+import TourCard from "../components/TourCard";
+import Icon from "../components/Icon";
+import { useTours } from "../lib/useTours";
+export default function Packages() {
+  const [params, setParams] = useSearchParams();
+  const { tours, loading, error } = useTours(params.toString());
+  function change(key, value) {
+    const next = new URLSearchParams(params);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    setParams(next);
+  }
   return (
     <>
-      <ReusableHero subTitle="Explore" title="Landscapes" />
-      <div className="relative z-10 w-full max-w-[100vw] overflow-x-hidden px-4 pb-12 sm:px-6 lg:px-10 xl:px-16 2xl:px-20">
-        <div className="-mt-5 bg-white pb-6 shadow-lg">
-          <div className="grid grid-cols-2 font-poppins text-sm font-bold text-[#343434] sm:grid-cols-4 sm:text-lg lg:text-[20px]">
-            {tabs.map((tab) => (
-              <button
-                type="button"
-                onClick={() => handleTabChange(tab.id)}
-                key={tab.id}
-                className={`min-h-[64px] px-2 py-3 text-center leading-snug sm:h-20 sm:px-4 ${
-                  activeMenu == tab.id ? "bg-transparent" : "bg-[#F8F8F8]"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+      <section className="page-intro container">
+        <p className="eyebrow">A WORLD WAITING TO BE DISCOVERED</p>
+        <h1>
+          Find your next <em>great story.</em>
+        </h1>
+        <p>
+          Remarkable places. Thoughtfully planned journeys.
+          <br />
+          All that’s missing is you.
+        </p>
+      </section>
+      <section className="container catalog-section">
+        <form
+          className="catalog-filters"
+          key={params.toString()}
+          onSubmit={(e) => {
+            e.preventDefault();
+            change("q", new FormData(e.currentTarget).get("q"));
+          }}
+        >
+          <div className="catalog-search">
+            <Icon name="search" />
+            <input
+              name="q"
+              aria-label="Search destinations"
+              defaultValue={params.get("q") || ""}
+              placeholder="Search a destination or journey"
+            />
+            <button type="submit" className="text-button">
+              Search
+            </button>
           </div>
-          <div className="grid w-full min-w-0 grid-cols-1 gap-6 px-3 py-4 sm:px-4 lg:grid-cols-5 lg:gap-3 lg:px-10">
-            <div className="relative flex min-w-0 flex-col gap-5 overflow-x-auto lg:col-span-3 lg:overflow-visible">
-              {activeMenu == 1 ? (
-                <PackagesContainer />
-              ) : activeMenu == 2 ? (
-                <TourPlan />
-              ) : activeMenu == 3 ? (
-                <Location />
-              ) : (
-                <Gallery />
-              )}
-            </div>
-            <div className="flex flex-col gap-5 lg:col-span-2">
-              <div className="flex w-full flex-col gap-4 bg-[#EDEDED] px-6 py-8 sm:px-10 sm:py-10 lg:px-[50px] lg:py-[40px]">
-                <div className="flex flex-col gap-1">
-                  <h4 className="text-center font-volkhov text-3xl font-bold text-[#181E4B] sm:text-[42px]">
-                    Book This Tour
-                  </h4>
-                  <p className="text-center font-poppins text-[16px]">
-                    Ex optio sequi et quos praesentium in nostrum labore nam
-                    rerum iusto aut magni nesciunt? Quo quidem neque iste
-                    expedita est dolo.
-                  </p>
-                </div>
-                <form className="flex flex-col items-center gap-3">
-                  <div className="flex w-full items-center gap-3 bg-white px-3 py-4">
-                    <img src={person} alt="" className="size-7 shrink-0" />
-                    <input
-                      type="text"
-                      name="name"
-                      id="name"
-                      placeholder="Full Name"
-                      className="flex-1 border-0 bg-transparent font-poppins text-[18px] text-black/50 outline-0 focus:border-0"
-                    />
-                  </div>
-                  <div className="flex w-full items-center gap-3 bg-white px-3 py-4">
-                    <img src={person} alt="" className="size-7 shrink-0" />
-                    <input
-                      type="email"
-                      name="email"
-                      id="email"
-                      placeholder="Email"
-                      className="flex-1 border-0 bg-transparent font-poppins text-[18px] text-black/50 outline-0 focus:border-0"
-                    />
-                  </div>
-                  <div className="flex w-full items-center gap-3 bg-white px-3 py-4">
-                    <img src={person} alt="" className="size-7 shrink-0" />
-                    <input
-                      type="tel"
-                      name="phone"
-                      id="phone"
-                      placeholder="Phone"
-                      className="flex-1 border-0 bg-transparent font-poppins text-[18px] text-black/50 outline-0 focus:border-0"
-                    />
-                  </div>
-                  <div className="flex w-full items-center gap-3 bg-white px-3 py-4">
-                    <img src={person} alt="" className="size-7 shrink-0" />
-                    <input
-                      type="text"
-                      name="guests"
-                      id="guests"
-                      placeholder="Guests"
-                      className="flex-1 border-0 bg-transparent font-poppins text-[18px] text-black/50 outline-0 focus:border-0"
-                    />
-                  </div>
-                  <div className="flex w-full items-center gap-3 bg-white px-3 py-4">
-                    <img src={person} alt="" className="size-7 shrink-0" />
-                    <input
-                      type="text"
-                      name="notes"
-                      id="notes"
-                      placeholder="Notes"
-                      className="flex-1 border-0 bg-transparent font-poppins text-[18px] text-black/50 outline-0 focus:border-0"
-                    />
-                  </div>
-                  <Button name={"Check Availability"} classname="w-fit" />
-                  <Button name={"Book Now"} classname="w-fit" />
-                </form>
-              </div>
-              <img src={image} alt="" className="w-full object-cover" />
-            </div>
-          </div>
+          <label>
+            <span>Region</span>
+            <select
+              aria-label="Filter by region"
+              value={params.get("region") || ""}
+              onChange={(e) => change("region", e.target.value)}
+            >
+              <option value="">All destinations</option>
+              {["Europe", "Asia", "Africa", "South America"].map((region) => (
+                <option key={region}>{region}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Sort by</span>
+            <select
+              aria-label="Sort journeys"
+              value={params.get("sort") || "date"}
+              onChange={(e) => change("sort", e.target.value)}
+            >
+              <option value="date">Next departure</option>
+              <option value="priceAsc">Price: low to high</option>
+              <option value="priceDesc">Price: high to low</option>
+              <option value="name">Name: A to Z</option>
+            </select>
+          </label>
+        </form>
+        <div className="results-line">
+          <p aria-live="polite">
+            {loading
+              ? "Finding your next adventure…"
+              : `${tours.length} ${tours.length === 1 ? "journey" : "journeys"} to inspire you`}
+            {params.get("month") ? ` · ${params.get("month")}` : ""}
+            {params.get("guests")
+              ? ` · ${params.get("guests")} travellers`
+              : ""}
+          </p>
+          {params.size > 0 && (
+            <button className="text-button" onClick={() => setParams({})}>
+              Clear filters ×
+            </button>
+          )}
         </div>
-      </div>
+        {error && (
+          <p role="alert" className="error-message">
+            {error}
+          </p>
+        )}
+        <div className="tour-grid">
+          {loading
+            ? [0, 1, 2].map((i) => <div key={i} className="card-skeleton" />)
+            : tours.map((tour) => <TourCard key={tour._id} tour={tour} />)}
+        </div>
+        {!loading && !error && !tours.length && (
+          <div className="empty-state">
+            <Icon name="globe" size={42} />
+            <h2>A different adventure awaits.</h2>
+            <p>
+              We couldn’t find a journey for those filters. Try another
+              destination or travel month.
+            </p>
+            <button className="button" onClick={() => setParams({})}>
+              See all journeys
+            </button>
+          </div>
+        )}
+      </section>
     </>
   );
-};
-
-export default Packages;
+}

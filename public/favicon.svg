@@ -1,16 +1,1 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
-  <defs>
-    <linearGradient id="wl" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ff7255"/>
-      <stop offset="1" stop-color="#ba4e38"/>
-    </linearGradient>
-  </defs>
-  <rect x="0" y="0" width="32" height="32" rx="7" ry="7" fill="url(#wl)"/>
-  <!-- Map pin: teardrop + inner dot, centered, high contrast for 16px tabs -->
-  <path
-    fill="#ffffff"
-    fill-rule="evenodd"
-    d="M16 6.5c-3.59 0-6.5 2.8-6.5 6.25 0 4.55 6.5 13.25 6.5 13.25S22.5 17.3 22.5 12.75C22.5 9.3 19.59 6.5 16 6.5zm0 3.25a3 3 0 1 1 0 6 3 3 0 0 1 0-6z"
-  />
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="10" fill="#285547"/><path d="m6 29 10-19 8 15 5-9 6 13H6Z" fill="none" stroke="#f4f5df" stroke-width="1.5"/></svg>

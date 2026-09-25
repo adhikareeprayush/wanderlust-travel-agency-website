@@ -1,95 +1,95 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { api } from "../../api/client";
+import { Card, StatCard } from "../../components/dashboard/DashboardUi";
 import {
-  revenueByMonth,
-  topDestinations,
-} from "../../data/mockDashboard";
-import { Card } from "../../components/dashboard/DashboardUi";
-
-const formatMoney = (n) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(n);
-
-const maxDest = Math.max(...topDestinations.map((d) => d.share));
-
-const DashboardAnalytics = () => {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="font-volkhov text-3xl font-bold text-[#181433]">
-          Analytics
-        </h2>
-        <p className="mt-1 text-sm text-[#757095]">
-          Lightweight mock charts for stakeholder reviews.
+  DestinationBars,
+  LeadSourceDonut,
+  RevenueAreaChart,
+  CapacityDonut,
+} from "../../components/dashboard/DashboardCharts";
+import Icon from "../../components/Icon";
+export default function DashboardAnalytics() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    api("/analytics/overview")
+      .then(setData)
+      .catch((e) => setError(e.message));
+  }, []);
+  if (error)
+    return (
+      <div className="portal-page">
+        <p role="alert" className="error-message">
+          {error}
         </p>
       </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="Revenue" subtitle="Trailing six months (mock)">
-          <ul className="space-y-3">
-            {revenueByMonth.map((m) => (
-              <li
-                key={m.month}
-                className="flex items-center justify-between rounded-xl bg-[#f9fafc] px-4 py-3"
-              >
-                <span className="text-sm font-semibold text-[#181433]">
-                  {m.month}
-                </span>
-                <span className="text-sm font-bold text-primary">
-                  {formatMoney(m.amount)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-
+    );
+  if (!data)
+    return (
+      <div className="portal-page">
+        <p role="status">Loading analytics…</p>
+      </div>
+    );
+  return (
+    <div className="portal-page">
+      <div className="portal-page-intro">
+        <div>
+          <p className="eyebrow">INSIGHT FOR WHAT COMES NEXT</p>
+          <h2>
+            Know where you stand.
+            <br />
+            <em>See where you're going.</em>
+          </h2>
+          <p>
+            Confirmed trip value, traveller interest and available places from
+            your live records.
+          </p>
+        </div>
+        <Link className="portal-outline-action" to="/dashboard/bookings">
+          Review requests <Icon name="arrow" size={16} />
+        </Link>
+      </div>
+      <div className="portal-stats-grid">
+        {data.stats.map((stat) => (
+          <StatCard key={stat.id} {...stat} />
+        ))}
+      </div>
+      <div className="portal-analytics-grid">
         <Card
-          title="Top destinations"
+          title="Confirmed trip value"
+          subtitle="Value of confirmed journeys over time"
+          className="portal-chart-card portal-wide"
+        >
+          <RevenueAreaChart data={data.revenueByMonth} />
+        </Card>
+        <Card title="Capacity" subtitle="Places on upcoming departures">
+          <CapacityDonut
+            value={data.occupancy}
+            label="Average tour fill"
+            detail="Based on confirmed places against total capacity."
+          />
+        </Card>
+        <Card
+          title="Popular destinations"
           subtitle="Share of confirmed bookings"
         >
-          <div className="space-y-4">
-            {topDestinations.map((d) => (
-              <div key={d.name}>
-                <div className="mb-1 flex justify-between text-sm">
-                  <span className="font-semibold text-[#181433]">
-                    {d.name}
-                  </span>
-                  <span className="text-[#757095]">
-                    {d.share}% · {d.bookings} bookings
-                  </span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-black/5">
-                  <div
-                    className="h-full rounded-full bg-primary/80"
-                    style={{
-                      width: `${Math.round((d.share / maxDest) * 100)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+          <DestinationBars data={data.topDestinations} />
+        </Card>
+        <Card
+          title="Where travellers find us"
+          subtitle="Source mix of confirmed bookings"
+        >
+          <LeadSourceDonut data={data.leadSources} />
         </Card>
       </div>
-
-      <Card title="Notes" subtitle="How this maps to a real product">
-        <ul className="list-disc space-y-2 pl-5 text-sm text-[#4a4a68]">
-          <li>
-            Swap `src/data/mockDashboard.js` for fetches to your CRM or
-            payments provider.
-          </li>
-          <li>
-            Add auth-gated routes and role-based nav when you wire a backend.
-          </li>
-          <li>
-            Charts can be upgraded to Recharts or Tremor without changing page
-            structure.
-          </li>
-        </ul>
-      </Card>
+      <div className="portal-analytics-note">
+        <Icon name="shield" size={19} />
+        <p>
+          Trip value reflects confirmed bookings. It is an estimate of booked
+          travel, not a record of payments collected.
+        </p>
+      </div>
     </div>
   );
-};
-
-export default DashboardAnalytics;
+}

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import Button from "./Button";
 import img1 from "../assets/views/1.jpg";
 import innerImage from "../assets/packages/inner.jpg";
@@ -15,13 +16,15 @@ const Views = () => {
             We Provide You Best <br className="hidden sm:block" /> Europe
             Sightseeing Tours
           </h2>
-          <p className="max-w-full font-poppins text-[16px] text-black lg:max-w-xl">
-            Et labore harum non nobis ipsum eum molestias mollitia et corporis
-            praesentium a laudantium internos. Non quis eius quo eligendi
-            corrupti et fugiat nulla qui soluta recusandae in maxime quasi aut
-            ducimus illum aut optio quibusdam!
+          <p className="max-w-full font-poppins text-[16px] leading-relaxed text-[#5E6282] lg:max-w-xl">
+            Our Europe specialists pair the landmarks you came for with the
+            slower moments that make a trip feel personal: neighborhood hotels,
+            scenic rail days, market tastings, and guides who know when to step
+            back so you can simply enjoy the view.
           </p>
-          <Button name={"View Packages"} classname="w-fit" />
+          <Link to="/packages">
+            <Button name={"View Packages"} classname="w-fit" />
+          </Link>
         </div>
         <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
           {[1, 2, 3, 4].map((i) => (
@@ -49,9 +52,7 @@ const Views = () => {
             alt=""
             className="h-[520px] w-full max-w-[350px] rounded-t-full object-cover sm:h-[580px] md:h-[620px]"
           />
-          <h3
-            className="pointer-events-none absolute bottom-32 right-3 max-h-[55%] origin-bottom-right font-poppins text-2xl font-bold leading-tight tracking-wide text-black/20 [text-orientation:mixed] [writing-mode:vertical-rl] sm:bottom-36 sm:right-4 sm:text-3xl md:bottom-40 md:text-[34px] xl:text-[40px]"
-          >
+          <h3 className="pointer-events-none absolute bottom-16 right-3 max-h-[55%] origin-bottom-right font-poppins text-2xl font-bold leading-tight tracking-wide text-black/20 [text-orientation:mixed] [writing-mode:vertical-rl] sm:bottom-20 sm:right-4 sm:text-3xl md:bottom-24 md:text-[34px] xl:text-[40px]">
             Honeymoon Packages
           </h3>
         </div>

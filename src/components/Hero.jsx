@@ -5,10 +5,12 @@ import BottomCircle from "./BottomCircle";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay } from "swiper/modules";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { heroAvatars, heroSlides } from "../data/siteContent";
 
 const Hero = () => {
   const [activeIndex, setActiveIndex] = useState(0);
+  const navigate = useNavigate();
   return (
     <div className="relative h-[100svh] min-h-[520px] w-full overflow-hidden">
       <Swiper
@@ -47,7 +49,22 @@ const Hero = () => {
         <h1 className="max-w-[22rem] font-poppins text-3xl font-bold leading-tight text-white sm:max-w-xl sm:text-4xl sm:leading-tight md:max-w-2xl md:text-5xl lg:max-w-[40rem] lg:text-[52px] lg:leading-[1.15] xl:max-w-[631px] xl:text-[58px] xl:leading-[70px]">
           No matter where you’re going to, we’ll take you there
         </h1>
-        <form className="flex w-full max-w-full flex-col gap-2 rounded-md bg-[#F3f3f3]/60 px-3 py-3 backdrop-blur-[18px] sm:w-fit sm:flex-row sm:items-center sm:gap-3 sm:rounded-[6px] sm:px-3 sm:py-2">
+        <form
+          className="flex w-full max-w-full flex-col gap-2 rounded-md bg-[#F3f3f3]/60 px-3 py-3 backdrop-blur-[18px] sm:w-fit sm:flex-row sm:items-center sm:gap-3 sm:rounded-[6px] sm:px-3 sm:py-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            const q = [
+              data.get("place"),
+              data.get("travelType"),
+              data.get("duration"),
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .trim();
+            navigate(q ? `/packages?q=${encodeURIComponent(q)}` : "/packages");
+          }}
+        >
           <input
             type="text"
             name="place"
@@ -71,6 +88,7 @@ const Hero = () => {
           />
           <Button
             name={"Submit"}
+            type="submit"
             classname="inline-flex min-h-[44px] w-full shrink-0 items-center justify-center px-6 sm:w-auto"
           />
         </form>

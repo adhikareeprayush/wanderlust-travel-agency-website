@@ -8,7 +8,7 @@ import { testimonialSlides } from "../data/siteContent";
 
 const Teestimonials = () => {
   return (
-      <div className="relative flex min-h-[560px] w-full max-w-[100vw] flex-col items-center justify-center overflow-hidden py-10 sm:min-h-[600px] md:min-h-[620px] md:py-0">
+    <div className="relative flex min-h-[560px] w-full max-w-[100vw] flex-col items-center justify-center overflow-hidden py-10 sm:min-h-[600px] md:min-h-[620px] md:py-0">
       <img
         src={bg}
         alt=""

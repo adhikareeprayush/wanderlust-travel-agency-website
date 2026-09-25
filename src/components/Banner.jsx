@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import col1Image from "../assets/banners/1.jpg";
 import col2Image from "../assets/banners/2.jpg";
 import line1 from "../assets/banners/line1.svg";
@@ -25,11 +26,13 @@ const Banner = () => {
               className="absolute -bottom-2 -right-4 w-24 sm:-bottom-[10px] sm:-right-[30px] sm:w-auto"
             />
           </div>
-          <Button
-            name={"View Packages"}
-            variant="outline"
-            classname="w-[150px]"
-          />
+          <Link to="/packages">
+            <Button
+              name={"View Packages"}
+              variant="outline"
+              classname="w-[150px]"
+            />
+          </Link>
         </div>
       </div>
 
@@ -53,11 +56,13 @@ const Banner = () => {
               className="absolute -bottom-2 -right-4 w-24 sm:-bottom-[10px] sm:-right-[30px] sm:w-auto"
             />
           </div>
-          <Button
-            name={"View Packages"}
-            variant="outline"
-            classname="w-[150px]"
-          />
+          <Link to="/packages">
+            <Button
+              name={"View Packages"}
+              variant="outline"
+              classname="w-[150px]"
+            />
+          </Link>
         </div>
       </div>
     </div>

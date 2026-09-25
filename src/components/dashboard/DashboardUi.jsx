@@ -1,60 +1,64 @@
-export const StatusBadge = ({ status }) => {
-  const styles = {
-    confirmed: "bg-emerald-50 text-emerald-800 ring-emerald-600/15",
-    pending: "bg-amber-50 text-amber-900 ring-amber-600/15",
-    waitlist: "bg-sky-50 text-sky-900 ring-sky-600/15",
-    cancelled: "bg-rose-50 text-rose-800 ring-rose-600/15",
+export function StatusBadge({ status }) {
+  const names = {
+    confirmed: "Confirmed",
+    pending: "Pending",
+    waitlist: "Waitlist",
+    cancelled: "Cancelled",
+    open: "Open",
+    full: "Full",
+    past: "Past",
   };
-  const key = styles[status] ? status : "pending";
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ring-1 ring-inset ${styles[key]}`}
-    >
-      {status}
+    <span className={`portal-status portal-status-${status}`}>
+      <span className="portal-status-dot" aria-hidden="true" />
+      {names[status] || status}
     </span>
   );
-};
-
-export const StatCard = ({ label, value, change, positive, hint }) => (
-  <div className="rounded-2xl border border-black/5 bg-white p-5 shadow-sm shadow-black/5">
-    <p className="text-sm font-medium text-[#757095]">{label}</p>
-    <p className="mt-2 font-volkhov text-3xl font-bold tracking-tight text-[#181433]">
-      {value}
-    </p>
-    <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-      <span
-        className={`font-semibold ${
-          positive ? "text-emerald-600" : "text-rose-600"
-        }`}
-      >
-        {change}
-      </span>
-      {hint && <span className="text-[#757095]">{hint}</span>}
-    </div>
-  </div>
-);
-
-export const Card = ({
-  title,
-  subtitle,
-  children,
-  action,
-  className = "",
-}) => (
-  <section
-    className={`rounded-2xl border border-black/5 bg-white shadow-sm shadow-black/5 ${className}`}
-  >
-    <div className="flex flex-col gap-1 border-b border-black/5 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 className="font-volkhov text-xl font-bold text-[#181433]">
-          {title}
-        </h2>
-        {subtitle && (
-          <p className="text-sm text-[#757095]">{subtitle}</p>
-        )}
+}
+export function StatCard({ label, value, change, positive, hint, id }) {
+  const icons = {
+    revenue: "chart",
+    bookings: "calendar",
+    occupancy: "users",
+    nps: "mail",
+  };
+  return (
+    <article className="portal-stat">
+      <div className="portal-stat-top">
+        <p>{label}</p>
+        <span className="portal-stat-icon" aria-hidden="true">
+          {id === "revenue"
+            ? "$"
+            : id === "bookings"
+              ? "↗"
+              : id === "occupancy"
+                ? "◫"
+                : icons[id]
+                  ? "✉"
+                  : "◉"}
+        </span>
       </div>
-      {action}
-    </div>
-    <div className="p-5">{children}</div>
-  </section>
-);
+      <strong>{value}</strong>
+      <p className="portal-stat-foot">
+        <span className={positive ? "is-positive" : "is-negative"}>
+          {change}
+        </span>{" "}
+        {hint}
+      </p>
+    </article>
+  );
+}
+export function Card({ title, subtitle, children, action, className = "" }) {
+  return (
+    <section className={`portal-card ${className}`}>
+      <div className="portal-card-header">
+        <div>
+          <h2>{title}</h2>
+          {subtitle && <p>{subtitle}</p>}
+        </div>
+        {action}
+      </div>
+      <div className="portal-card-body">{children}</div>
+    </section>
+  );
+}

@@ -1,12 +1,12 @@
 import { galleryMosaic } from "../data/siteContent";
 
-const Gallery = () => {
-  const [a, b, c, d, e, f, g] = galleryMosaic;
+const Gallery = ({ images }) => {
+  const mosaic = images?.length ? images : galleryMosaic;
+  const [a, b, c, d, e, f, g] = mosaic;
   return (
     <div className="flex w-full min-w-0 flex-col gap-4">
-      {/* Mobile: simple stack */}
       <div className="flex flex-col gap-3 md:hidden">
-        {[a, b, c, d, e, f, g].map((src, i) => (
+        {mosaic.map((src, i) => (
           <img
             key={i}
             src={src}
@@ -15,13 +15,16 @@ const Gallery = () => {
           />
         ))}
       </div>
-      {/* md+: original mosaic */}
       <div className="hidden grid-cols-3 gap-3 md:grid">
         <div className="col-span-1">
           <img src={a} alt="" className="h-[244px] w-full object-cover" />
         </div>
         <div className="col-span-2 row-span-3">
-          <img src={b} alt="" className="h-full min-h-[244px] w-full object-cover" />
+          <img
+            src={b}
+            alt=""
+            className="h-full min-h-[244px] w-full object-cover"
+          />
         </div>
         <div className="col-span-1 h-[244px]">
           <img src={c} alt="" className="h-full w-full object-cover" />
@@ -33,10 +36,10 @@ const Gallery = () => {
           <img src={e} alt="" className="h-full w-full object-cover" />
         </div>
         <div className="col-span-1 h-[244px]">
-          <img src={f} alt="" className="h-full w-full object-cover" />
+          <img src={f || a} alt="" className="h-full w-full object-cover" />
         </div>
         <div className="col-span-3 h-[244px]">
-          <img src={g} alt="" className="h-full w-full object-cover" />
+          <img src={g || b} alt="" className="h-full w-full object-cover" />
         </div>
       </div>
     </div>

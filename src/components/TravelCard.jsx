@@ -6,8 +6,10 @@ const TravelCard = ({ tour, featured }) => {
   return (
     <div
       className={`${
-        featured ? "bg-white shadow-sm" : ""
-      } mx-auto flex w-full max-w-[min(100%,370px)] flex-col gap-4 rounded-[21px] p-5 sm:p-[21px] lg:mx-0`}
+        featured
+          ? "bg-white shadow-[0_22px_60px_rgba(24,30,75,0.08)]"
+          : "bg-white/70"
+      } mx-auto flex h-full w-full max-w-[min(100%,370px)] flex-col gap-4 rounded-[21px] p-5 transition duration-300 hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(24,30,75,0.12)] sm:p-[21px] lg:mx-0`}
     >
       <div className="flex flex-col">
         <img
@@ -26,7 +28,7 @@ const TravelCard = ({ tour, featured }) => {
         <h3 className="font-volkhov text-2xl font-bold text-[#181E4B] sm:text-[28px] md:text-[34px]">
           {title}
         </h3>
-        <p className="font-poppins text-[15px] text-[#181E4B] sm:text-[17px]">
+        <p className="font-poppins text-[15px] leading-relaxed text-[#5E6282] sm:text-[16px]">
           {excerpt}
         </p>
         <div className="flex flex-wrap items-center gap-3">
