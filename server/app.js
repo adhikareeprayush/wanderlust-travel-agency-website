@@ -18,9 +18,11 @@ import enquiries from "./routes/enquiries.js";
 import analytics from "./routes/analytics.js";
 import settings from "./routes/settings.js";
 import team from "./routes/team.js";
+import uploads from "./routes/uploads.js";
 import newsletter from "./routes/newsletter.js";
 const app = express();
 app.disable("x-powered-by");
+app.set("trust proxy", env.trustProxy);
 app.use(
   helmet({
     crossOriginResourcePolicy: false,
@@ -28,6 +30,8 @@ app.use(
       directives: {
         "img-src": ["'self'", "data:", "https:"],
         "font-src": ["'self'", "https://fonts.gstatic.com"],
+        // Journey cover images are uploaded straight from the browser to ImageKit.
+        "connect-src": ["'self'", "https://upload.imagekit.io"],
         "style-src": [
           "'self'",
           "'unsafe-inline'",
@@ -69,8 +73,14 @@ app.use("/api/newsletter", limiter(30), newsletter);
 app.use("/api/analytics", analytics);
 app.use("/api/settings", settings);
 app.use("/api/team", limiter(100), team);
+app.use("/api/uploads", uploads);
 app.use("/api", notFound);
 const dist = fileURLToPath(new URL("../dist/", import.meta.url));
+// Built assets have hashed names, so browsers can cache them for a year.
+app.use(
+  "/assets",
+  express.static(path.join(dist, "assets"), { immutable: true, maxAge: "1y" }),
+);
 app.use(express.static(dist));
 app.get("/{*splat}", (req, res, next) => {
   if (path.extname(req.path)) return next();

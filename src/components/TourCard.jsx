@@ -10,7 +10,7 @@ export default function TourCard({ tour }) {
         aria-label={`Explore ${tour.title}`}
       >
         <img
-          src={resolveTourImage(tour.imageKey, tour.slug)}
+          src={resolveTourImage(tour.imageKey, tour.slug, 800)}
           alt={tour.title}
           loading="lazy"
         />

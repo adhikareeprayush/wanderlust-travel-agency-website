@@ -101,7 +101,7 @@ export default function AccountBookings() {
         bookings.map((b) => (
           <article key={b._id} className="account-journey-card">
             <img
-              src={resolveTourImage(b.tour?.imageKey, b.tour?.slug)}
+              src={resolveTourImage(b.tour?.imageKey, b.tour?.slug, 500)}
               alt={b.tour?.title || "Journey"}
             />
             <div className="account-journey-body">

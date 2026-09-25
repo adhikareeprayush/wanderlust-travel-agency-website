@@ -48,7 +48,7 @@ export default function TourDetail() {
       </nav>
       <section className="detail-cover">
         <img
-          src={resolveTourImage(tour.imageKey, tour.slug)}
+          src={resolveTourImage(tour.imageKey, tour.slug, 2000)}
           alt={tour.title}
           fetchPriority="high"
         />

@@ -68,25 +68,49 @@ Requests use an idempotency key. Receipt tokens are stored as hashes on the serv
 
 Authentication uses hashed passwords and signed, expiring JWTs. Production startup requires a non-default JWT secret of at least 32 characters. Auth, enquiry, newsletter and booking routes have rate limits; staff-only operations are authorized on the server.
 
-## Production
+## Deploy to a VPS (Docker + Caddy)
+
+`docker-compose.prod.yml` runs the app behind Caddy, which serves HTTPS for `travel.prayushadhikari.com.np` and renews the certificate automatically. The database is MongoDB Atlas; images are stored and served by ImageKit.
+
+Before you start:
+
+- A DNS **A record** for `travel.prayushadhikari.com.np` pointing at the VPS, and ports **80** and **443** open.
+- In **Atlas → Network Access**, allow the VPS's public IP address.
+- Docker with the Compose plugin on the VPS.
 
 ```bash
-npm ci
-npm run build
-NODE_ENV=production npm start
+git clone <your-repo-url> wanderlust && cd wanderlust
+cp .env.production.example .env.production
+nano .env.production        # fill in MONGODB_URI, JWT_SECRET, IMAGEKIT_PRIVATE_KEY
+docker compose -f docker-compose.prod.yml up -d --build
+
+# First time only
+docker compose -f docker-compose.prod.yml exec app node server/scripts/create-admin.js you@example.com "Your Name"
+docker compose -f docker-compose.prod.yml exec app node server/scripts/setup.js --catalog   # optional sample journeys
 ```
 
-Express serves the built website and API on `PORT` (default 5000). Configure:
+- `JWT_SECRET`: generate with `openssl rand -hex 32`. The app refuses to start in production without a strong one.
+- `create-admin` asks for a password (12+ characters). Sign in at `/login`, then add staff under **Team & settings**.
+- `setup.js --catalog` adds the sample journeys and dates only. The public demo accounts are never created in production.
+- Updates: `git pull && docker compose -f docker-compose.prod.yml up -d --build`.
+- Logs: `docker compose -f docker-compose.prod.yml logs -f app caddy`.
 
-- `MONGODB_URI`: persistent MongoDB replica-set/Atlas connection.
-- `JWT_SECRET`: a long random secret (generate with `openssl rand -hex 32`).
-- `CLIENT_URL`: the public website origin.
-- `SMTP_*`: mail provider credentials for real email delivery.
-- `VITE_API_URL`: only needed if the frontend and API use different origins; set before building.
+If Caddy already runs on the host for other sites, remove the `caddy` service, publish the app with `ports: ["127.0.0.1:5000:5000"]`, and add this to your existing Caddyfile:
 
-Without SMTP, submissions still persist, but emails are only previewed in server logs. The settings screen shows whether delivery is configured. Mail delivery failures are logged without undoing saved bookings.
+```
+travel.prayushadhikari.com.np {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:5000
+}
+```
 
-The existing `vercel.json` is for **frontend-only hosting**. To use it, deploy the Express API separately and set `VITE_API_URL` to that API origin. For a single full-stack deployment, use the Node/Express start command above or the included Dockerfile with an external MongoDB replica set.
+### Images (ImageKit)
+
+Site photography is served from `https://ik.imagekit.io/vboscqy9oj/wanderlust/…`, resized and converted to modern formats by ImageKit. Journey covers uploaded in the workspace go straight from the browser to ImageKit using a short-lived signature from the server; the private key never leaves the server. After adding or replacing files in `public/images`, run `npm run images:sync` (or the same script inside the container) to upload them. Without `VITE_IMAGEKIT_URL_ENDPOINT` at build time, the bundled `/images` files are used instead.
+
+### Other hosting
+
+`npm ci && npm run build && NODE_ENV=production npm start` serves the built site and API on `PORT` (default 5000). The existing `vercel.json` is for frontend-only hosting with the API deployed separately and `VITE_API_URL` set before building. Without SMTP settings, submissions still persist and emails are only logged.
 
 ## Verification
 

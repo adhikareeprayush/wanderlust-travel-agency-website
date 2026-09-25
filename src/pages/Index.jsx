@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import Icon from "../components/Icon";
 import TourCard from "../components/TourCard";
 import { useTours } from "../lib/useTours";
-const baliImage = "/images/story.webp";
+import { imageUrl } from "../lib/imagekit";
+const baliImage = imageUrl("/images/story.webp", { width: 1200 });
 const regions = ["All journeys", "Europe", "Asia", "Africa", "South America"];
 export default function Index() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function Index() {
       <section className="home-hero">
         <img
           className="hero-background"
-          src="/images/hero-mountains.jpg"
+          src={imageUrl("/images/hero-mountains.jpg", { width: 2000 })}
           alt="A wooden boat on a still lake surrounded by alpine peaks"
           fetchPriority="high"
         />
@@ -260,7 +261,7 @@ export default function Index() {
               className="destination-card"
             >
               <img
-                src={`/images/${item.image}.jpg`}
+                src={imageUrl(`/images/${item.image}.jpg`, { width: 800 })}
                 alt={item.place}
                 loading="lazy"
               />

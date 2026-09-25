@@ -1,0 +1,53 @@
+# Production: the app (using MongoDB Atlas) behind Caddy, which serves HTTPS
+# for travel.prayushadhikari.com.np and renews certificates automatically.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Secrets live in .env.production (copy .env.production.example).
+name: wanderlust
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        VITE_IMAGEKIT_URL_ENDPOINT: https://ik.imagekit.io/vboscqy9oj
+    image: wanderlust-app
+    restart: unless-stopped
+    init: true
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: "5000"
+      # Caddy is the one proxy in front of the app.
+      TRUST_PROXY: "1"
+    expose:
+      - "5000"
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  caddy_data:
+  caddy_config:

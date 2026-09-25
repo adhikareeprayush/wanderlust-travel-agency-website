@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import Icon from "../components/Icon";
-const image = "/images/story.webp";
+import { imageUrl } from "../lib/imagekit";
+const image = imageUrl("/images/story.webp", { width: 1600 });
 export default function About() {
   return (
     <div className="container editorial">

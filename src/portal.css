@@ -536,7 +536,7 @@
 .portal-overview-photo {
   position: absolute;
   inset: 0 0 0 40%;
-  background: url("/images/hero-mountains.jpg") center 48% / cover;
+  background: var(--hero-image) center 48% / cover;
   z-index: -2;
 }
 .portal-overview-hero:after {
@@ -1945,12 +1945,32 @@
 }
 .portal-cover-picker {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 15px;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 16px;
+  align-items: center;
 }
 .portal-cover-picker .portal-modal-preview {
-  height: 84px;
+  height: 132px;
+}
+.portal-cover-picker .form-stack {
+  gap: 12px;
+}
+.portal-upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.portal-upload-row .portal-btn {
+  cursor: pointer;
+}
+.portal-upload-row .portal-btn.is-busy {
+  cursor: wait;
+  opacity: 0.7;
+}
+.portal-upload-row small {
+  color: var(--p-muted);
+  font-size: 10px;
 }
 /* Departures */
 .portal-month {
@@ -2625,7 +2645,7 @@
   background:
     radial-gradient(circle at 0 100%, #e0560f40, transparent 42%),
     linear-gradient(90deg, #211a16 0%, #211a16c4 58%, #211a1659 100%),
-    url("/images/hero-mountains.jpg") center 46% / cover;
+    var(--hero-image) center 46% / cover;
   color: white;
 }
 .account-hero-inner {
@@ -2960,7 +2980,7 @@
   z-index: -1;
 }
 .auth-visual-image {
-  background: url("/images/hero-mountains.jpg") center/cover;
+  background: var(--hero-image) center/cover;
 }
 .auth-visual-overlay {
   background: linear-gradient(

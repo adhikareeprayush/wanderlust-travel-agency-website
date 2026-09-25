@@ -4,9 +4,12 @@ import { User } from "../models/User.js";
 import { Tour } from "../models/Tour.js";
 import { Departure } from "../models/Departure.js";
 import { seedTours } from "../data/catalog.js";
-if (process.env.NODE_ENV === "production")
+// --catalog adds only the sample journeys and departure dates (no demo
+// sign-ins), and is the only mode allowed in production.
+const catalogOnly = process.argv.includes("--catalog");
+if (process.env.NODE_ENV === "production" && !catalogOnly)
   throw new Error(
-    "Demo setup is disabled in production. Create real inventory and accounts explicitly.",
+    "Demo setup is disabled in production. To add the sample journeys without demo accounts, run: node server/scripts/setup.js --catalog",
   );
 try {
   await connectDb();
@@ -25,7 +28,7 @@ try {
       "customer",
     ],
   ];
-  for (const [email, password, name, role] of accounts)
+  for (const [email, password, name, role] of catalogOnly ? [] : accounts)
     if (!(await User.exists({ email })))
       await User.create({
         email,
@@ -74,7 +77,9 @@ try {
   }
   await BookingIndexes();
   console.log(
-    "Demo setup complete. Existing records preserved. See README for local demo sign-in.",
+    catalogOnly
+      ? "Sample journeys and departure dates added. Existing records preserved."
+      : "Demo setup complete. Existing records preserved. See README for local demo sign-in.",
   );
 } finally {
   await mongoose.disconnect();

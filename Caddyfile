@@ -1,0 +1,12 @@
+# Caddy obtains and renews the HTTPS certificate automatically.
+# Point the domain's DNS A record (and AAAA, if you use IPv6) at this server
+# and open ports 80 and 443 before starting.
+travel.prayushadhikari.com.np {
+	encode zstd gzip
+	reverse_proxy app:5000
+}
+
+# Optional: send www visitors to the main address (needs its own DNS record).
+# www.travel.prayushadhikari.com.np {
+# 	redir https://travel.prayushadhikari.com.np{uri} permanent
+# }

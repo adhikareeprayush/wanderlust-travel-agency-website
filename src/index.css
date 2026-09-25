@@ -23,6 +23,8 @@
   --paper: #fbf8f5;
   --muted: #7a6f68;
   --line: #ebe4dd;
+  /* Replaced at start-up with the ImageKit URL when ImageKit is configured. */
+  --hero-image: url("/images/hero-mountains.jpg");
   --serif: "DM Serif Display", Georgia, serif;
   --sans: "DM Sans", system-ui, sans-serif;
 }
@@ -1450,7 +1452,7 @@ select {
 .auth-visual {
   background:
     linear-gradient(0deg, #231d19b3, #211b1833),
-    url("/images/hero-mountains.jpg") center/cover;
+    var(--hero-image) center/cover;
   display: flex;
   flex-direction: column;
   justify-content: space-between;

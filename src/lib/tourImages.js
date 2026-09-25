@@ -1,3 +1,4 @@
+import { imageUrl } from "./imagekit";
 const destinationImages = {
   "swiss-alps-lakes": "/images/switzerland.jpg",
   "amalfi-coast-sunsets": "/images/italy.jpg",
@@ -20,11 +21,14 @@ export const tourImageMap = {
   sec3: "/images/morocco.jpg",
   card1: "/images/switzerland.jpg",
 };
-export function resolveTourImage(key, slug) {
-  if (typeof key === "string" && /^(https?:\/\/|\/)/.test(key)) return key;
-  return (
-    destinationImages[slug] || tourImageMap[key] || "/images/switzerland.jpg"
-  );
+export function resolveTourImage(key, slug, width = 1200) {
+  const src =
+    typeof key === "string" && /^(https?:\/\/|\/)/.test(key)
+      ? key
+      : destinationImages[slug] ||
+        tourImageMap[key] ||
+        "/images/switzerland.jpg";
+  return imageUrl(src, { width });
 }
 export function formatMoney(value) {
   return new Intl.NumberFormat("en-US", {

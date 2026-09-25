@@ -80,6 +80,41 @@ const DashboardTours = () => {
 
   const set = (name, value) => setForm((f) => ({ ...f, [name]: value }));
 
+  const [uploading, setUploading] = useState(false);
+  // The browser sends the file straight to ImageKit using a short-lived
+  // signature from our server, so the private key never leaves the server.
+  async function uploadCover(file) {
+    if (!file) return;
+    setError("");
+    if (!/^image\/(jpeg|png|webp|avif)$/.test(file.type))
+      return setError("Choose a JPG, PNG, WebP or AVIF image.");
+    if (file.size > 10 * 1024 * 1024)
+      return setError("Choose an image smaller than 10 MB.");
+    setUploading(true);
+    try {
+      const auth = await api("/uploads/auth");
+      const body = new FormData();
+      body.append("file", file);
+      body.append("fileName", file.name);
+      body.append("folder", auth.folder);
+      body.append("useUniqueFileName", "true");
+      for (const key of ["publicKey", "signature", "expire", "token"])
+        body.append(key, auth[key]);
+      const response = await fetch(
+        "https://upload.imagekit.io/api/v1/files/upload",
+        { method: "POST", body },
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok)
+        throw new Error(data.message || "The image could not be uploaded.");
+      set("imageKey", data.url);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   const startEdit = (tour) => {
     setError("");
     setEditing(tour);
@@ -245,7 +280,7 @@ const DashboardTours = () => {
             return (
               <article key={t._id} className="portal-tour-card">
                 <div className="portal-tour-media">
-                  <img src={resolveTourImage(t.imageKey, t.slug)} alt="" />
+                  <img src={resolveTourImage(t.imageKey, t.slug, 700)} alt="" />
                   <div className="portal-tour-tags">
                     <span
                       className={`portal-status portal-status-${t.published ? "published" : "draft"}`}
@@ -385,34 +420,55 @@ const DashboardTours = () => {
               </label>
             </div>
             <div className="portal-cover-picker">
-              <label className="field">
-                Cover image
-                <select
-                  value={
-                    coverChoices.some((c) => c.value === form.imageKey)
-                      ? form.imageKey
-                      : "custom"
-                  }
-                  onChange={(e) =>
-                    set(
-                      "imageKey",
-                      e.target.value === "custom" ? "" : e.target.value,
-                    )
-                  }
-                >
-                  {coverChoices.map((choice) => (
-                    <option key={choice.value} value={choice.value}>
-                      {choice.label}
-                    </option>
-                  ))}
-                  <option value="custom">Custom image URL</option>
-                </select>
-              </label>
               <img
                 className="portal-modal-preview"
-                src={resolveTourImage(form.imageKey)}
+                src={resolveTourImage(form.imageKey, undefined, 700)}
                 alt="Selected journey cover preview"
               />
+              <div className="form-stack">
+                <label className="field">
+                  Cover image
+                  <select
+                    value={
+                      coverChoices.some((c) => c.value === form.imageKey)
+                        ? form.imageKey
+                        : "custom"
+                    }
+                    onChange={(e) =>
+                      set(
+                        "imageKey",
+                        e.target.value === "custom" ? "" : e.target.value,
+                      )
+                    }
+                  >
+                    {coverChoices.map((choice) => (
+                      <option key={choice.value} value={choice.value}>
+                        {choice.label}
+                      </option>
+                    ))}
+                    <option value="custom">Your own image</option>
+                  </select>
+                </label>
+                <div className="portal-upload-row">
+                  <label
+                    className={`portal-btn portal-btn-secondary is-small${uploading ? " is-busy" : ""}`}
+                  >
+                    <Icon name="plus" size={14} />
+                    {uploading ? "Uploading…" : "Upload image"}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
+                      className="sr-only"
+                      disabled={uploading}
+                      onChange={(e) => {
+                        uploadCover(e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  <small>JPG, PNG or WebP up to 10 MB. Stored on ImageKit.</small>
+                </div>
+              </div>
             </div>
             {!coverChoices.some((c) => c.value === form.imageKey) && (
               <label className="field">
@@ -420,7 +476,7 @@ const DashboardTours = () => {
                 <input
                   value={form.imageKey}
                   onChange={(e) => set("imageKey", e.target.value)}
-                  placeholder="https://example.com/journey.jpg"
+                  placeholder="Upload an image or paste an https:// link"
                 />
               </label>
             )}
